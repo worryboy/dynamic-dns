@@ -249,12 +249,20 @@ The worker is outbound-only in normal operation. It does not run a web server, e
 
 Container layout:
 
-- base image: `php:8.3-cli-alpine`
+- base image: `php:8.3-cli-alpine3.22`
 - app image: `internetx-dyndns:local`
 - release image: `worryboy/internetx-dyndns:0.1.0`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`
+
+Image hardening notes:
+
+- the image keeps only runtime libraries needed for PHP `curl` and `dom`
+- extension build dependencies are installed in a temporary `.build-deps` package group and removed after build
+- the final image does not keep the shell `curl` tool because runtime HTTP requests are performed through the PHP `curl` extension
+- some scanner findings may still come from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine base packages such as `tar`, `libcurl`, or `nghttp2`
+- those inherited findings are reduced by rebuilding on newer upstream PHP/Alpine base releases when they become available
 
 ## macOS Without Docker Desktop
 
