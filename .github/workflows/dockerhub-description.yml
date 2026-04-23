@@ -12,7 +12,6 @@ jobs:
   dockerhub-description:
     name: Update Docker Hub Description
     runs-on: ubuntu-latest
-    # Replace this with your actual GitHub Environment name if it differs.
     environment: dockerhub
 
     steps:
