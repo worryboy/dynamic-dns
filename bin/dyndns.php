@@ -1,14 +1,22 @@
 <?php
 
 $projectRoot = dirname(__DIR__);
-$legacyConfig = $projectRoot . '/config.php';
-if (is_file($legacyConfig)) {
-    require_once $legacyConfig;
-}
 
 require_once $projectRoot . '/src/bootstrap.php';
 
-$config = Config::load($projectRoot);
+try {
+    $config = Config::load($projectRoot);
+} catch (Throwable $exception) {
+    $logger = new Logger('php://stdout');
+    $logger->info('Startup validation', array(
+        'env_file' => is_file($projectRoot . '/.env') ? 'present' : 'missing',
+        'config_source' => is_file($projectRoot . '/.env') ? '.env/environment' : 'environment',
+        'target_host' => getenv('TARGET_HOST') !== false && trim((string) getenv('TARGET_HOST')) !== '' ? 'present' : 'missing',
+    ));
+    $logger->error('Configuration loading failed', array('error' => $exception->getMessage()));
+    exit(1);
+}
+
 $logger = new Logger($config->logTarget());
 $stateStore = new StateStore($config->stateDir());
 $resolver = new PublicIpResolver(

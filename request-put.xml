@@ -2,8 +2,8 @@
 <request>
   <auth>
     <user></user>
-    <password></password>
     <context></context>
+    <password></password>
   </auth>
   <language>de</language>
   <task>

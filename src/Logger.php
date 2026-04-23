@@ -14,6 +14,11 @@ final class Logger
         $this->write('INFO', $message, $context);
     }
 
+    public function success(string $message, array $context = array()): void
+    {
+        $this->write('SUCCESS', $message, $context);
+    }
+
     public function warning(string $message, array $context = array()): void
     {
         $this->write('WARNING', $message, $context);
@@ -24,12 +29,18 @@ final class Logger
         $this->write('ERROR', $message, $context);
     }
 
+    public function debug(string $message, array $context = array()): void
+    {
+        $this->write('DEBUG', $message, $context);
+    }
+
     private function write(string $level, string $message, array $context): void
     {
+        $levelLabel = $this->formatLevel($level);
         $line = sprintf(
             "[%s] %s %s%s\n",
             gmdate('c'),
-            $level,
+            $levelLabel,
             $message,
             $this->formatContext($context)
         );
@@ -58,5 +69,34 @@ final class Logger
 
         return empty($pairs) ? '' : ' ' . implode(' ', $pairs);
     }
-}
 
+    private function formatLevel(string $level): string
+    {
+        if (!$this->shouldColorize()) {
+            return $level;
+        }
+
+        $colors = array(
+            'DEBUG' => "\033[2;37m",
+            'INFO' => "\033[34m",
+            'SUCCESS' => "\033[32m",
+            'WARNING' => "\033[33m",
+            'ERROR' => "\033[31m",
+        );
+
+        if (!isset($colors[$level])) {
+            return $level;
+        }
+
+        return $colors[$level] . $level . "\033[0m";
+    }
+
+    private function shouldColorize(): bool
+    {
+        if (getenv('NO_COLOR') !== false) {
+            return false;
+        }
+
+        return in_array($this->target, array('php://stdout', 'php://stderr'), true);
+    }
+}
