@@ -1,3 +1,4 @@
+.git
 .env
 state/*
 !state/.gitkeep

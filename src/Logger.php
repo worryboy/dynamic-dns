@@ -24,6 +24,11 @@ final class Logger
         $this->write('ERROR', $message, $context);
     }
 
+    public function debug(string $message, array $context = array()): void
+    {
+        $this->write('DEBUG', $message, $context);
+    }
+
     private function write(string $level, string $message, array $context): void
     {
         $line = sprintf(
@@ -59,4 +64,3 @@ final class Logger
         return empty($pairs) ? '' : ' ' . implode(' ', $pairs);
     }
 }
-
