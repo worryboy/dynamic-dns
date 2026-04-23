@@ -1,3 +1,15 @@
 .env
 state/*
 !state/.gitkeep
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+.DS_Store
+.idea/
+.vscode/
+.phpunit.result.cache
+.docker-build/

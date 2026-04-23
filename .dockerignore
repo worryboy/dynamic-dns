@@ -2,3 +2,11 @@
 .env
 state/*
 !state/.gitkeep
+logs/
+tmp/
+temp/
+*.log
+*.tmp
+.DS_Store
+.idea/
+.vscode/

@@ -15,6 +15,7 @@ final class Config
     private array $domains;
     private array $ipv4Providers;
     private array $ipv6Providers;
+    private bool $ipv4Enabled;
     private bool $ipv6Enabled;
     private bool $dryRun;
     private bool $debug;
@@ -42,6 +43,7 @@ final class Config
         $this->domains = $data['domains'];
         $this->ipv4Providers = $data['ipv4_providers'];
         $this->ipv6Providers = $data['ipv6_providers'];
+        $this->ipv4Enabled = $data['ipv4_enabled'];
         $this->ipv6Enabled = $data['ipv6_enabled'];
         $this->dryRun = $data['dry_run'];
         $this->debug = $data['debug'];
@@ -97,6 +99,7 @@ final class Config
             'domains' => $domains,
             'ipv4_providers' => $ipv4Providers,
             'ipv6_providers' => $ipv6Providers,
+            'ipv4_enabled' => self::boolEnv(self::env('ENABLE_IPV4', 'true')),
             'ipv6_enabled' => self::boolEnv(self::env('ENABLE_IPV6', 'false')),
             'dry_run' => self::boolEnv(self::env('DRY_RUN', 'false')),
             'debug' => self::boolEnv(self::env('DEBUG', 'false')),
@@ -214,6 +217,7 @@ final class Config
             'INTERNETX_SYSTEM_NS',
             'STATE_DIR',
             'CHECK_INTERVAL_SECONDS',
+            'ENABLE_IPV4',
             'ENABLE_IPV6',
             'PUBLIC_IPV4_PROVIDERS',
             'PUBLIC_IPV6_PROVIDERS',
@@ -236,6 +240,11 @@ final class Config
     public function ipv6Providers(): array
     {
         return $this->ipv6Providers;
+    }
+
+    public function ipv4Enabled(): bool
+    {
+        return $this->ipv4Enabled;
     }
 
     public function ipv6Enabled(): bool
@@ -315,6 +324,10 @@ final class Config
 
         if (($this->ownerUser === '') !== ($this->ownerContext === '')) {
             throw new RuntimeException('INTERNETX_OWNER_USER and INTERNETX_OWNER_CONTEXT must be configured together.');
+        }
+
+        if (!$this->ipv4Enabled && !$this->ipv6Enabled) {
+            throw new RuntimeException('At least one public IP family must be enabled. Set ENABLE_IPV4=true or ENABLE_IPV6=true.');
         }
 
         foreach ($this->domains as $domain => $subdomains) {

@@ -39,9 +39,19 @@ final class DynDnsService
 
         try {
             $this->enterStage(self::STAGE_STARTUP_CONFIG);
+            $this->logger->info('Execution cycle started', array(
+                'dry_run' => $this->config->dryRun() ? 'true' : 'false',
+                'run_once' => $this->config->runOnce() ? 'true' : 'false',
+            ));
             $this->validateStartup();
             $this->stateStore->ensureDirectoryExists();
             $this->exitStage('configuration_validated');
+
+            $this->enterStage(self::STAGE_PUBLIC_IP_DETECTION);
+            $detectedIp = $this->detectPublicIpAddresses();
+            $ipv4 = $detectedIp['ipv4'];
+            $ipv6 = $detectedIp['ipv6'];
+            $this->exitStage('public_ip_detection_complete');
 
             $this->enterStage(self::STAGE_AUTH_SESSION);
             $this->logger->info('Starting InterNetX authentication/session preflight', array(
@@ -54,34 +64,13 @@ final class DynDnsService
             $this->exitStage('session_established');
 
             $this->enterStage(self::STAGE_TARGET_VALIDATION);
-            $this->validateTargetAccess();
+            $this->validateTargetAccess($ipv4 !== null, $ipv6 !== null);
             $this->exitStage('target_validated');
 
-            $this->enterStage(self::STAGE_PUBLIC_IP_DETECTION);
-            $ipv4 = $this->resolver->resolve('ipv4');
-            if ($ipv4 === null) {
-                throw new RuntimeException('IPv4 detection is required but no IPv4 address was detected.');
-            }
-            $this->logger->info('Detected IPv4 address', array('ipv4' => $ipv4));
-
-            $ipv6 = null;
-            if ($this->config->ipv6Enabled()) {
-                $this->logger->info('IPv6 detection enabled by configuration', array('attempted' => 'true'));
-                $ipv6 = $this->resolver->resolve('ipv6');
-                if ($ipv6 === null) {
-                    $this->logger->warning('IPv6 detection enabled but no IPv6 address detected');
-                } else {
-                    $this->logger->info('Detected IPv6 address', array('ipv6' => $ipv6));
-                }
-            } else {
-                $this->logger->info('IPv6 detection disabled by configuration', array('attempted' => 'false'));
-            }
-            $this->exitStage('public_ip_detection_complete');
-
             $this->enterStage(self::STAGE_UPDATE_DECISION);
-            $lastIpv4 = $this->stateStore->get('last_ipv4');
+            $lastIpv4 = $this->config->ipv4Enabled() ? $this->stateStore->get('last_ipv4') : null;
             $lastIpv6 = $this->config->ipv6Enabled() ? $this->stateStore->get('last_ipv6') : null;
-            $ipv4Changed = $lastIpv4 !== $ipv4;
+            $ipv4Changed = $this->config->ipv4Enabled() && $ipv4 !== null ? $lastIpv4 !== $ipv4 : false;
             $ipv6Changed = $this->config->ipv6Enabled() && $ipv6 !== null ? $lastIpv6 !== $ipv6 : false;
             $updateRequired = $ipv4Changed || $ipv6Changed;
 
@@ -93,23 +82,24 @@ final class DynDnsService
                 'update_required' => $updateRequired ? 'true' : 'false',
                 'ipv4_changed' => $ipv4Changed ? 'true' : 'false',
                 'ipv6_changed' => $ipv6Changed ? 'true' : 'false',
+                'ipv4_detected' => $ipv4 !== null ? 'true' : 'false',
+                'ipv6_detected' => $ipv6 !== null ? 'true' : 'false',
                 'dry_run' => $this->config->dryRun() ? 'true' : 'false',
                 'mutation_allowed' => $this->mutationAllowed() ? 'true' : 'false',
                 'live_mutation_attempted' => $this->liveMutationAttempted ? 'true' : 'false',
             ));
 
             if (!$updateRequired) {
-                $context = array('ipv4' => $ipv4);
-                if ($ipv6 !== null) {
-                    $context['ipv6'] = $ipv6;
-                }
-                $context['update_required'] = 'false';
-                $context['intended_action'] = 'none';
-                $context['reason'] = 'stored_ip_matches_detected_ip';
-                $context['dry_run'] = $this->config->dryRun() ? 'true' : 'false';
-                $context['mutation_allowed'] = $this->mutationAllowed() ? 'true' : 'false';
-                $context['live_mutation_attempted'] = 'false';
-                $this->logger->info('IP unchanged', $context);
+                $this->logger->info('Execution cycle completed; no IP change detected', array(
+                    'update_required' => 'false',
+                    'intended_action' => 'none',
+                    'reason' => 'stored_ip_matches_detected_ip',
+                    'ipv4_detected' => $ipv4 !== null ? 'true' : 'false',
+                    'ipv6_detected' => $ipv6 !== null ? 'true' : 'false',
+                    'dry_run' => $this->config->dryRun() ? 'true' : 'false',
+                    'mutation_allowed' => $this->mutationAllowed() ? 'true' : 'false',
+                    'live_mutation_attempted' => 'false',
+                ));
                 if ($this->config->dryRun()) {
                     $this->logger->info('Dry-run completed; no live mutation sent', array(
                         'reason' => 'no_update_required',
@@ -123,13 +113,15 @@ final class DynDnsService
             }
 
             $context = array(
-                'ipv4' => $ipv4,
                 'ipv4_changed' => $ipv4Changed ? 'true' : 'false',
                 'update_required' => 'true',
                 'target_host' => $this->config->targetHost(),
                 'target_zone' => $this->config->targetZone(),
                 'target_subdomain' => $this->config->targetSubdomain(),
             );
+            if ($ipv4 !== null) {
+                $context['ipv4'] = $ipv4;
+            }
             if ($ipv6 !== null) {
                 $context['ipv6'] = $ipv6;
                 $context['ipv6_changed'] = $ipv6Changed ? 'true' : 'false';
@@ -160,7 +152,9 @@ final class DynDnsService
                 $this->gateway->updateZoneRecords($domain, $subdomains, $ipv4, $ipv6);
             }
 
-            $this->stateStore->put('last_ipv4', $ipv4);
+            if ($ipv4 !== null) {
+                $this->stateStore->put('last_ipv4', $ipv4);
+            }
             if ($ipv6 !== null) {
                 $this->stateStore->put('last_ipv6', $ipv6);
             }
@@ -190,6 +184,8 @@ final class DynDnsService
             'dry_run' => $this->config->dryRun() ? 'true' : 'false',
             'debug' => $this->config->debug() ? 'true' : 'false',
             'run_once' => $this->config->runOnce() ? 'true' : 'false',
+            'ipv4_enabled' => $this->config->ipv4Enabled() ? 'true' : 'false',
+            'ipv6_enabled' => $this->config->ipv6Enabled() ? 'true' : 'false',
             'mutation_allowed' => $this->mutationAllowed() ? 'true' : 'false',
         ));
 
@@ -233,6 +229,83 @@ final class DynDnsService
             'auth_variants' => $this->config->authVariants(),
             'configured_owner' => $this->config->hasConfiguredOwner() ? 'present' : 'not_set',
         ));
+    }
+
+    private function detectPublicIpAddresses(): array
+    {
+        $this->logger->info('Starting public IP detection', array(
+            'ipv4_enabled' => $this->config->ipv4Enabled() ? 'true' : 'false',
+            'ipv6_enabled' => $this->config->ipv6Enabled() ? 'true' : 'false',
+        ));
+
+        $lastIpv4 = $this->stateStore->get('last_ipv4');
+        $lastIpv6 = $this->stateStore->get('last_ipv6');
+
+        $ipv4 = null;
+        if ($this->config->ipv4Enabled()) {
+            $ipv4 = $this->resolver->resolve('ipv4');
+            if ($ipv4 === null) {
+                $this->logger->warning('IPv4 detection failed');
+            } elseif ($lastIpv4 === $ipv4) {
+                $this->logger->success('IPv4 unchanged');
+                $this->debug('Detected IPv4 address', array('ipv4' => $ipv4));
+            } else {
+                $this->logger->info('Detected IPv4 address: ' . $ipv4, array('ipv4' => $ipv4));
+                $this->logger->success('Public IPv4 detection completed', array('status' => 'changed_or_first_seen'));
+            }
+        } else {
+            $this->logger->info('IPv4 detection disabled by configuration', array(
+                'attempted' => 'false',
+                'status' => 'disabled',
+            ));
+        }
+
+        $ipv6 = null;
+        if ($this->config->ipv6Enabled()) {
+            $this->logger->info('IPv6 detection enabled by configuration', array('attempted' => 'true'));
+            $ipv6 = $this->resolver->resolve('ipv6');
+            if ($ipv6 === null) {
+                $this->logger->warning('IPv6 detection enabled but no IPv6 address found');
+            } elseif ($lastIpv6 === $ipv6) {
+                $this->logger->success('IPv6 unchanged');
+                $this->debug('Detected IPv6 address', array('ipv6' => $ipv6));
+            } else {
+                $this->logger->info('Detected IPv6 address: ' . $ipv6, array('ipv6' => $ipv6));
+                $this->logger->success('Public IPv6 detection completed', array('status' => 'changed_or_first_seen'));
+            }
+        } else {
+            $this->logger->info('IPv6 detection disabled by configuration', array(
+                'attempted' => 'false',
+                'status' => 'disabled',
+            ));
+        }
+
+        if ($ipv4 === null && $ipv6 === null) {
+            $this->logger->error('No usable public IP address detected; aborting before authentication', array(
+                'ipv4_detected' => 'false',
+                'ipv6_detected' => 'false',
+                'authentication_attempted' => 'false',
+            ));
+            throw new RuntimeException('No usable public IP address detected.');
+        }
+
+        if ($ipv4 === null && $ipv6 !== null) {
+            $this->logger->warning('IPv4 detection failed but IPv6 is available', array('ipv6' => $ipv6));
+        }
+
+        if ($ipv4 !== null && $ipv6 === null && $this->config->ipv6Enabled()) {
+            $this->logger->warning('IPv6 detection failed but IPv4 is available', array('ipv4' => $ipv4));
+        }
+
+        $this->logger->success('Public IP detection completed with at least one usable address', array(
+            'ipv4_detected' => $ipv4 !== null ? 'true' : 'false',
+            'ipv6_detected' => $ipv6 !== null ? 'true' : 'false',
+        ));
+
+        return array(
+            'ipv4' => $ipv4,
+            'ipv6' => $ipv6,
+        );
     }
 
     private function createSessionWithConfiguredVariants(): void
@@ -313,16 +386,18 @@ final class DynDnsService
         );
     }
 
-    private function validateTargetAccess(): void
+    private function validateTargetAccess(bool $requireIpv4, bool $requireIpv6): void
     {
         foreach ($this->config->domains() as $domain => $subdomains) {
             $this->logger->info('Validating read-only InterNetX zone access', array(
                 'zone' => $domain,
                 'subdomains' => $subdomains,
                 'auth_mode' => 'auth_session',
+                'require_a_record' => $requireIpv4 ? 'true' : 'false',
+                'require_aaaa_record' => $requireIpv6 ? 'true' : 'false',
                 'mutation' => 'false',
             ));
-            $this->gateway->validateTargetAccess($domain, $subdomains, $this->config->ipv6Enabled());
+            $this->gateway->validateTargetAccess($domain, $subdomains, $requireIpv4, $requireIpv6);
         }
 
         $this->logger->info('Read-only InterNetX zone access validation successful', array(
@@ -432,7 +507,7 @@ final class DynDnsService
         }
 
         if ($this->currentStage === self::STAGE_PUBLIC_IP_DETECTION) {
-            return 'Dry-run public IP detection failed';
+            return 'Dry-run public IP detection failed before authentication';
         }
 
         if ($this->currentStage === self::STAGE_UPDATE_DECISION) {

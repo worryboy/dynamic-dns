@@ -135,6 +135,10 @@ final class XmlGatewayClient
             throw new RuntimeException('Refusing XML zone update mutation because DRY_RUN is enabled.');
         }
 
+        if ($ipv4 === null && $ipv6 === null) {
+            throw new RuntimeException('Refusing XML zone update mutation because no usable public IP address was detected.');
+        }
+
         $this->assertSessionEstablished('live zone update');
         $this->config->validateForGateway();
 
@@ -155,15 +159,17 @@ final class XmlGatewayClient
         $this->assertApiSuccess($diagnostics, 'Live zone update failed', 'ZoneUpdate', true);
     }
 
-    public function validateTargetAccess(string $domain, array $subdomains, bool $ipv6Enabled): void
+    public function validateTargetAccess(string $domain, array $subdomains, bool $requireIpv4, bool $requireIpv6): void
     {
         $this->assertSessionEstablished('read-only target validation');
         $this->config->validateForGateway();
 
         $zoneDocument = $this->fetchZone($domain);
         foreach ($subdomains as $subdomain) {
-            $this->assertRecordExists($zoneDocument, $domain, $subdomain, 'A');
-            if ($ipv6Enabled) {
+            if ($requireIpv4) {
+                $this->assertRecordExists($zoneDocument, $domain, $subdomain, 'A');
+            }
+            if ($requireIpv6) {
                 $this->assertRecordExists($zoneDocument, $domain, $subdomain, 'AAAA');
             }
         }
