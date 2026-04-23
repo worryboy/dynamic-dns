@@ -151,18 +151,4 @@ If an enabled address family cannot be detected, the worker logs a warning and c
 - The image removes build-only packages after compiling PHP extensions and keeps only the required runtime libraries.
 - Some vulnerability scanner findings may still be inherited from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine runtime packages. Those are usually resolved by rebuilding on newer upstream base releases when fixes land there.
 
-## Release Notes
 
-### 0.1.0
-
-Initial release:
-
-- container-only InterNetX DynDNS worker
-- session-based InterNetX XML authentication
-- explicit session cleanup
-- safe dry-run mode
-- configurable IPv4/IPv6 public IP detection
-- single `TARGET_HOST` update model
-- `A` record updates for IPv4
-- `AAAA` record updates for IPv6
-- outbound-only runtime with no exposed ports
