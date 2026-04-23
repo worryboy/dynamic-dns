@@ -1,0 +1,11 @@
+services:
+  internetx-dyndns:
+    build:
+      context: .
+    container_name: internetx-dyndns
+    image: internetx-dyndns:local
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./state:/app/state
