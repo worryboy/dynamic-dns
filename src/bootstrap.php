@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/AppInfo.php';
 require_once __DIR__ . '/Config.php';
 require_once __DIR__ . '/InterNetXApiException.php';
 require_once __DIR__ . '/Logger.php';

@@ -40,6 +40,7 @@ final class DynDnsService
         try {
             $this->enterStage(self::STAGE_STARTUP_CONFIG);
             $this->logger->info('Execution cycle started', array(
+                'version' => AppInfo::version(),
                 'dry_run' => $this->config->dryRun() ? 'true' : 'false',
                 'run_once' => $this->config->runOnce() ? 'true' : 'false',
             ));
@@ -57,10 +58,9 @@ final class DynDnsService
             $this->logger->info('Starting InterNetX authentication/session preflight', array(
                 'auth_flow' => 'auth_session',
                 'session_create_task_code' => '1321001',
-                'auth_variants' => $this->config->authVariants(),
                 'mutation_allowed' => $this->mutationAllowed() ? 'true' : 'false',
             ));
-            $this->createSessionWithConfiguredVariants();
+            $this->gateway->createSession();
             $this->exitStage('session_established');
 
             $this->enterStage(self::STAGE_TARGET_VALIDATION);
@@ -197,8 +197,6 @@ final class DynDnsService
             'username' => $this->config->user() !== '' ? 'present' : 'missing',
             'password' => $this->config->password() !== '' ? 'present' : 'missing',
             'context' => $this->config->context() !== '' ? 'present' : 'missing',
-            'auth_variants' => $this->config->authVariants(),
-            'configured_owner' => $this->config->hasConfiguredOwner() ? 'present' : 'not_set',
         ));
 
         $this->logger->info('Project DNS target configuration', array(
@@ -226,8 +224,6 @@ final class DynDnsService
         $this->debug('Selected API host', array(
             'host' => $this->config->host(),
             'auth_flow' => 'auth_session',
-            'auth_variants' => $this->config->authVariants(),
-            'configured_owner' => $this->config->hasConfiguredOwner() ? 'present' : 'not_set',
         ));
     }
 
@@ -305,84 +301,6 @@ final class DynDnsService
         return array(
             'ipv4' => $ipv4,
             'ipv6' => $ipv6,
-        );
-    }
-
-    private function createSessionWithConfiguredVariants(): void
-    {
-        $lastException = null;
-        $lastVariant = null;
-        $testedVariants = array();
-
-        foreach ($this->config->authVariants() as $variant) {
-            $owner = $this->ownerForAuthVariant($variant);
-            $testedVariants[] = $variant;
-            $lastVariant = $variant;
-            $this->logger->info('Testing InterNetX authentication variant', array(
-                'auth_variant' => $variant,
-                'owner_block_included' => $owner['included'] ? 'true' : 'false',
-                'owner_source' => $owner['source'],
-                'mutation' => 'false',
-                'dry_run' => $this->config->dryRun() ? 'true' : 'false',
-            ));
-
-            try {
-                $this->gateway->createSession($variant, $owner['user'], $owner['context']);
-                return;
-            } catch (Throwable $exception) {
-                $lastException = $exception;
-                $context = array(
-                    'auth_variant' => $variant,
-                    'owner_block_included' => $owner['included'] ? 'true' : 'false',
-                    'owner_source' => $owner['source'],
-                    'error' => $exception->getMessage(),
-                    'session_established' => 'false',
-                    'live_mutation_attempted' => $this->liveMutationAttempted ? 'true' : 'false',
-                );
-                $context = array_merge($context, $this->exceptionDiagnostics($exception));
-                $this->logger->warning('InterNetX authentication variant failed', $context);
-            }
-        }
-
-        $diagnostics = array(
-            'operation' => 'AuthSessionCreate',
-            'stage' => self::STAGE_AUTH_SESSION,
-            'tested_auth_variants' => $testedVariants,
-            'last_auth_variant' => $lastVariant,
-            'session_established' => 'false',
-        );
-        if ($lastException !== null) {
-            $diagnostics = array_merge($diagnostics, $this->exceptionDiagnostics($lastException));
-        }
-
-        throw new InterNetXApiException('InterNetX authentication/session creation failed for all configured variants.', $diagnostics);
-    }
-
-    private function ownerForAuthVariant(string $variant): array
-    {
-        if ($variant === 'owner_same') {
-            return array(
-                'included' => true,
-                'source' => 'auth_user_context',
-                'user' => $this->config->user(),
-                'context' => $this->config->context(),
-            );
-        }
-
-        if ($variant === 'owner_configured') {
-            return array(
-                'included' => true,
-                'source' => 'INTERNETX_OWNER_USER/INTERNETX_OWNER_CONTEXT',
-                'user' => $this->config->ownerUser(),
-                'context' => $this->config->ownerContext(),
-            );
-        }
-
-        return array(
-            'included' => false,
-            'source' => 'none',
-            'user' => null,
-            'context' => null,
         );
     }
 

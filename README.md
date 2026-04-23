@@ -1,5 +1,7 @@
 # InterNetX DynDNS
 
+Current release: `0.1.0`
+
 `InterNetX DynDNS` is a containerized PHP worker that keeps one explicitly configured DNS host in sync with the current public IP address of the machine or network running the container.
 
 The worker uses the InterNetX/AutoDNS XML gateway. The default live XML API endpoint remains `https://gateway.autodns.com`, which is current provider API terminology. Runtime API calls use the documented XML `auth_session` flow: create a session, reuse its hash for this run, then close it.
@@ -119,9 +121,6 @@ Before running live updates, check the zone:
 | `DEBUG` | optional runtime/debug | No | Prints detailed diagnostics without exposing secrets, including sanitized XML request/response payloads for provider calls. | `true` |
 | `TARGET_ZONE` | optional runtime/debug | No | Overrides zone inference from `TARGET_HOST`. | `example.co.uk` |
 | `INTERNETX_SYSTEM_NS` | optional runtime/debug | No | Optional zone inquiry selector for the first system-managed nameserver. Usually unset. | `ns1.routing.net` |
-| `INTERNETX_AUTH_VARIANTS` | optional auth diagnostics | No | Comma-separated AuthSessionCreate probe variants. Supported values: `auth_only`, `owner_same`, `owner_configured`. | `auth_only,owner_same` |
-| `INTERNETX_OWNER_USER` | optional auth diagnostics | No | Owner user for the `owner_configured` probe variant. Not needed unless InterNetX support says this account must act for a subuser owner. | `owner-user` |
-| `INTERNETX_OWNER_CONTEXT` | optional auth diagnostics | No | Owner context for the `owner_configured` probe variant. Must be set together with `INTERNETX_OWNER_USER`. | `9` |
 | `STATE_DIR` | optional runtime/debug | No | Directory for persisted `last_ipv4` and `last_ipv6` values. | `/app/state` |
 | `CHECK_INTERVAL_SECONDS` | optional runtime/debug | No | Sleep interval for continuous container mode. Ignored when `RUN_ONCE=true`. | `300` |
 | `HTTP_CONNECT_TIMEOUT` | optional runtime/debug | No | HTTP connect timeout for IP and XML requests. | `10` |
@@ -176,7 +175,7 @@ Example dry-run startup:
 [2026-04-23T08:00:00+00:00] DEBUG Runtime stage entered stage=startup/config validation dry_run=true mutation_allowed=false
 [2026-04-23T08:00:00+00:00] INFO Execution cycle started dry_run=true run_once=true
 [2026-04-23T08:00:00+00:00] INFO Startup validation env_file=present config_source=.env/environment dry_run=true debug=true run_once=true ipv4_enabled=true ipv6_enabled=false
-[2026-04-23T08:00:00+00:00] INFO XML authentication configuration api_host=present auth_flow=auth_session session_create_uses_credentials=true follow_up_auth=auth_session username=present password=present context=present auth_variants=auth_only,owner_same configured_owner=not_set
+[2026-04-23T08:00:00+00:00] INFO XML authentication configuration api_host=present auth_flow=auth_session session_create_uses_credentials=true follow_up_auth=auth_session username=present password=present context=present
 [2026-04-23T08:00:00+00:00] INFO Project DNS target configuration target_host=present system_ns_optional=not_set
 [2026-04-23T08:00:00+00:00] INFO Optional runtime settings configured=DRY_RUN,DEBUG,RUN_ONCE
 [2026-04-23T08:00:00+00:00] INFO Configuration format validated dry_run_config_sufficient=true
@@ -188,15 +187,14 @@ Example dry-run startup:
 [2026-04-23T08:00:02+00:00] INFO IPv6 detection disabled by configuration attempted=false
 [2026-04-23T08:00:02+00:00] SUCCESS Public IP detection completed with at least one usable address ipv4_detected=true ipv6_detected=false
 [2026-04-23T08:00:03+00:00] DEBUG Runtime stage entered stage=authentication/session preflight dry_run=true mutation_allowed=false live_mutation_attempted=false
-[2026-04-23T08:00:03+00:00] INFO Starting InterNetX authentication/session preflight auth_flow=auth_session session_create_task_code=1321001 auth_variants=auth_only,owner_same mutation_allowed=false
-[2026-04-23T08:00:03+00:00] INFO Testing InterNetX authentication variant auth_variant=auth_only owner_block_included=false owner_source=none mutation=false dry_run=true
-[2026-04-23T08:00:03+00:00] DEBUG InterNetX XML request prepared operation=AuthSessionCreate task_code=1321001 api_call_type=auth_session_create stage=authentication/session preflight mutation=false dry_run=true owner_block_included=false auth_mode=session_create auth_variant=auth_only session_established=false payload=<request>...</request>
-[2026-04-23T08:00:03+00:00] DEBUG InterNetX XML response received operation=AuthSessionCreate task_code=1321001 api_call_type=auth_session_create stage=authentication/session preflight mutation=false dry_run=true owner_block_included=false auth_mode=session_create auth_variant=auth_only session_established=false http_status=200 transport_success=true response_result_status_code=S1321001 response_result_status_type=success stid=20260423-app1 api_business_success=true payload=<response>...</response>
-[2026-04-23T08:00:03+00:00] INFO InterNetX session login successful auth_variant=auth_only auth_mode=auth_session owner_block_included=false session_hash=9b4b...73dd session_persisted=false
+[2026-04-23T08:00:03+00:00] INFO Starting InterNetX authentication/session preflight auth_flow=auth_session session_create_task_code=1321001 mutation_allowed=false
+[2026-04-23T08:00:03+00:00] DEBUG InterNetX XML request prepared operation=AuthSessionCreate task_code=1321001 api_call_type=auth_session_create stage=authentication/session preflight mutation=false dry_run=true auth_mode=session_create session_established=false payload=<request>...</request>
+[2026-04-23T08:00:03+00:00] DEBUG InterNetX XML response received operation=AuthSessionCreate task_code=1321001 api_call_type=auth_session_create stage=authentication/session preflight mutation=false dry_run=true auth_mode=session_create session_established=false http_status=200 transport_success=true response_result_status_code=S1321001 response_result_status_type=success stid=20260423-app1 api_business_success=true payload=<response>...</response>
+[2026-04-23T08:00:03+00:00] SUCCESS InterNetX session created auth_mode=auth_session session_hash=9b4b...73dd session_persisted=false
 [2026-04-23T08:00:04+00:00] DEBUG Runtime stage entered stage=target/zone validation dry_run=true mutation_allowed=false live_mutation_attempted=false
 [2026-04-23T08:00:04+00:00] INFO Validating read-only InterNetX zone access zone=domain.com subdomains=subleveldomain require_a_record=true require_aaaa_record=false mutation=false
-[2026-04-23T08:00:04+00:00] DEBUG InterNetX XML request prepared operation=ZoneInfo task_code=0205 api_call_type=read_only_preflight stage=target/zone validation mutation=false dry_run=true owner_block_included=false auth_mode=auth_session auth_variant=auth_only session_established=true payload=<request>...</request>
-[2026-04-23T08:00:04+00:00] DEBUG InterNetX XML response received operation=ZoneInfo task_code=0205 api_call_type=read_only_preflight stage=target/zone validation mutation=false dry_run=true owner_block_included=false auth_mode=auth_session auth_variant=auth_only session_established=true http_status=200 transport_success=true response_result_status_code=S0205 response_result_status_type=success stid=20260423-app1 api_business_success=true payload=<response>...</response>
+[2026-04-23T08:00:04+00:00] DEBUG InterNetX XML request prepared operation=ZoneInfo task_code=0205 api_call_type=read_only_preflight stage=target/zone validation mutation=false dry_run=true auth_mode=auth_session session_established=true payload=<request>...</request>
+[2026-04-23T08:00:04+00:00] DEBUG InterNetX XML response received operation=ZoneInfo task_code=0205 api_call_type=read_only_preflight stage=target/zone validation mutation=false dry_run=true auth_mode=auth_session session_established=true http_status=200 transport_success=true response_result_status_code=S0205 response_result_status_type=success stid=20260423-app1 api_business_success=true payload=<response>...</response>
 [2026-04-23T08:00:04+00:00] INFO Read-only InterNetX zone access validation successful target_host=subleveldomain.domain.com
 [2026-04-23T08:00:05+00:00] DEBUG Runtime stage entered stage=update decision dry_run=true mutation_allowed=false live_mutation_attempted=false
 [2026-04-23T08:00:05+00:00] DEBUG Loaded previous state last_ipv4=none last_ipv6=none
@@ -204,8 +202,8 @@ Example dry-run startup:
 [2026-04-23T08:00:05+00:00] INFO Dry-run would require update, but mutation is disabled ipv4=203.0.113.10 ipv4_changed=true update_required=true target_host=subleveldomain.domain.com target_zone=domain.com target_subdomain=subleveldomain intended_action=would_update_dns_records dry_run=true mutation_allowed=false
 [2026-04-23T08:00:05+00:00] INFO Dry-run completed; no live mutation sent reason=dry_run_enabled mutation_allowed=false live_mutation_attempted=false
 [2026-04-23T08:00:05+00:00] DEBUG Runtime stage entered stage=session cleanup dry_run=true mutation_allowed=false live_mutation_attempted=false
-[2026-04-23T08:00:05+00:00] DEBUG InterNetX XML request prepared operation=AuthSessionDelete task_code=1321003 api_call_type=session_cleanup stage=session cleanup mutation=false dry_run=true owner_block_included=false auth_mode=session_delete auth_variant=auth_only session_established=true payload=<request>...</request>
-[2026-04-23T08:00:05+00:00] INFO InterNetX session closed auth_variant=auth_only auth_mode=session_delete owner_block_included=false session_hash=9b4b...73dd
+[2026-04-23T08:00:05+00:00] DEBUG InterNetX XML request prepared operation=AuthSessionDelete task_code=1321003 api_call_type=session_cleanup stage=session cleanup mutation=false dry_run=true auth_mode=session_delete session_established=true payload=<request>...</request>
+[2026-04-23T08:00:05+00:00] SUCCESS InterNetX session closed auth_mode=session_delete session_hash=9b4b...73dd
 ```
 
 The read-only access validation uses InterNetX ZoneInfo task `0205`. It can confirm that the credentials can read the configured zone and that the configured record exists. It cannot guarantee every future provider-side update policy will allow mutation, but it is the safest non-mutating preflight this XML workflow provides.
@@ -221,14 +219,6 @@ The worker uses:
 - `AuthSessionDelete` with task code `1321003` to close the session
 
 The session hash is treated as a secret. It is kept only in memory, never persisted, and redacted in sanitized XML debug logs. Short masked display such as `9b4b...73dd` may appear in operational logs.
-
-The XML basics documentation lists `owner` as an optional top-level subuser block. The Auth object itself remains `user/context/password`. For debugging InterNetX or SchlundTech-style account setups, dry-run debug mode can test AuthSessionCreate variants explicitly:
-
-- `auth_only`: `<auth>` only.
-- `owner_same`: `<auth>` plus `<owner>` with the same user/context.
-- `owner_configured`: `<auth>` plus `<owner>` from `INTERNETX_OWNER_USER` and `INTERNETX_OWNER_CONTEXT`.
-
-When `DRY_RUN=true` and `DEBUG=true`, the default probe order is `auth_only`, `owner_same`, and `owner_configured` only if configured owner values are present. The worker stops at the first successful session login. If every variant fails, it stops before zone validation and logs the tested variant, whether owner was included, InterNetX response code/text, `stid`, `session_established=false`, and `live_mutation_attempted=false`.
 
 The updater does not create missing DNS records. If IPv4 is enabled and detected, the target `A` record must already exist. If IPv6 is enabled and detected, the target `AAAA` record must already exist too.
 
@@ -261,6 +251,7 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine`
 - app image: `internetx-dyndns:local`
+- release image: `worryboy/internetx-dyndns:0.1.0`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`
@@ -280,8 +271,36 @@ docker compose version
 
 Then run the same `docker compose` commands shown above.
 
+## Release 0.1.0
+
+The project version is stored in [`VERSION`](VERSION). Runtime HTTP requests to public IP detection providers use the matching user agent, for example `internetx-dyndns/0.1.0`.
+
+Recommended git release commands:
+
+```bash
+git add .
+git commit -m "Release v0.1.0"
+git tag -a v0.1.0 -m "InterNetX DynDNS v0.1.0"
+git push origin HEAD
+git push origin v0.1.0
+```
+
+Recommended Docker Hub release commands:
+
+```bash
+docker build --build-arg APP_VERSION=0.1.0 -t worryboy/internetx-dyndns:0.1.0 .
+docker tag worryboy/internetx-dyndns:0.1.0 worryboy/internetx-dyndns:latest
+docker push worryboy/internetx-dyndns:0.1.0
+docker push worryboy/internetx-dyndns:latest
+```
+
+Keep the Git tag and Docker image tag aligned: GitHub `v0.1.0` maps to Docker Hub `worryboy/internetx-dyndns:0.1.0`. Move `latest` only when publishing the same tested release image.
+
 ## Files Of Interest
 
+- [`VERSION`](VERSION)
+- [`CHANGELOG.md`](CHANGELOG.md)
+- [`README.Docker.md`](README.Docker.md)
 - [`src/Config.php`](src/Config.php)
 - [`src/XmlGatewayClient.php`](src/XmlGatewayClient.php)
 - [`src/PublicIpResolver.php`](src/PublicIpResolver.php)

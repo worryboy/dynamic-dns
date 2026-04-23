@@ -10,9 +10,6 @@ final class XmlGatewayClient
     private Config $config;
     private Logger $logger;
     private ?string $sessionHash = null;
-    private string $sessionAuthVariant = 'none';
-    private ?string $sessionOwnerUser = null;
-    private ?string $sessionOwnerContext = null;
     private string $stage = 'unknown';
 
     public function __construct(Config $config, Logger $logger)
@@ -31,28 +28,23 @@ final class XmlGatewayClient
         return $this->sessionHash !== null;
     }
 
-    public function createSession(string $authVariant, ?string $ownerUser, ?string $ownerContext): void
+    public function createSession(): void
     {
         $this->config->validateForGateway();
-        $ownerBlockIncluded = $ownerUser !== null && $ownerContext !== null;
         $this->debug('Preparing InterNetX AuthSessionCreate request', array(
             'stage' => $this->stage,
-            'auth_variant' => $authVariant,
             'auth_mode' => 'session_create',
             'credentials_auth' => 'true',
-            'owner_block_included' => $ownerBlockIncluded ? 'true' : 'false',
         ));
 
-        $request = $this->buildSessionCreateRequest($ownerUser, $ownerContext);
+        $request = $this->buildSessionCreateRequest();
         $response = $this->request(
             $request->saveXML(),
             'AuthSessionCreate',
             self::TASK_AUTH_SESSION_CREATE,
             'auth_session_create',
             'session_create',
-            $authVariant,
             false,
-            $ownerBlockIncluded
         );
 
         $document = $this->loadXml($response, 'AuthSessionCreate response');
@@ -65,20 +57,13 @@ final class XmlGatewayClient
                 'operation' => 'AuthSessionCreate',
                 'task_code' => self::TASK_AUTH_SESSION_CREATE,
                 'stage' => $this->stage,
-                'auth_variant' => $authVariant,
-                'owner_block_included' => $ownerBlockIncluded ? 'true' : 'false',
                 'session_established' => 'false',
             ));
         }
 
         $this->sessionHash = $hash;
-        $this->sessionAuthVariant = $authVariant;
-        $this->sessionOwnerUser = $ownerUser;
-        $this->sessionOwnerContext = $ownerContext;
-        $this->logger->info('InterNetX session login successful', array(
-            'auth_variant' => $authVariant,
+        $this->logger->success('InterNetX session created', array(
             'auth_mode' => 'auth_session',
-            'owner_block_included' => $ownerBlockIncluded ? 'true' : 'false',
             'session_hash' => $this->maskSecret($hash),
             'session_persisted' => 'false',
         ));
@@ -92,25 +77,20 @@ final class XmlGatewayClient
         }
 
         $hash = $this->sessionHash;
-        $ownerBlockIncluded = $this->sessionOwnerUser !== null && $this->sessionOwnerContext !== null;
         $this->debug('Preparing InterNetX AuthSessionDelete request', array(
             'stage' => $this->stage,
-            'auth_variant' => $this->sessionAuthVariant,
             'auth_mode' => 'session_delete',
             'session_hash' => $this->maskSecret($hash),
-            'owner_block_included' => $ownerBlockIncluded ? 'true' : 'false',
         ));
 
-        $request = $this->buildSessionDeleteRequest($hash, $this->sessionOwnerUser, $this->sessionOwnerContext);
+        $request = $this->buildSessionDeleteRequest($hash);
         $response = $this->request(
             $request->saveXML(),
             'AuthSessionDelete',
             self::TASK_AUTH_SESSION_DELETE,
             'session_cleanup',
             'session_delete',
-            $this->sessionAuthVariant,
             false,
-            $ownerBlockIncluded
         );
 
         $document = $this->loadXml($response, 'AuthSessionDelete response');
@@ -118,15 +98,10 @@ final class XmlGatewayClient
         $this->assertApiSuccess($diagnostics, 'Session cleanup failed', 'AuthSessionDelete', true);
 
         $this->sessionHash = null;
-        $this->logger->info('InterNetX session closed', array(
-            'auth_variant' => $this->sessionAuthVariant,
+        $this->logger->success('InterNetX session closed', array(
             'auth_mode' => 'session_delete',
-            'owner_block_included' => $ownerBlockIncluded ? 'true' : 'false',
             'session_hash' => $this->maskSecret($hash),
         ));
-        $this->sessionAuthVariant = 'none';
-        $this->sessionOwnerUser = null;
-        $this->sessionOwnerContext = null;
     }
 
     public function updateZoneRecords(string $domain, array $subdomains, ?string $ipv4, ?string $ipv6): void
@@ -150,9 +125,7 @@ final class XmlGatewayClient
             self::TASK_ZONE_UPDATE,
             'live_mutation',
             'auth_session',
-            $this->sessionAuthVariant,
             true,
-            $this->sessionOwnerUser !== null && $this->sessionOwnerContext !== null
         );
         $resultDocument = $this->loadXml($result, 'update zone records response');
         $diagnostics = $this->extractResponseDiagnostics($resultDocument);
@@ -188,8 +161,6 @@ final class XmlGatewayClient
             'domain' => $domain,
             'api_call_type' => 'read_only_preflight',
             'auth_mode' => 'auth_session',
-            'auth_variant' => $this->sessionAuthVariant,
-            'owner_block_included' => $this->sessionOwnerUser !== null && $this->sessionOwnerContext !== null ? 'true' : 'false',
             'mutation' => 'false',
         ));
         $result = $this->request(
@@ -198,9 +169,7 @@ final class XmlGatewayClient
             self::TASK_ZONE_INQUIRY,
             'read_only_preflight',
             'auth_session',
-            $this->sessionAuthVariant,
             false,
-            $this->sessionOwnerUser !== null && $this->sessionOwnerContext !== null
         );
         $document = $this->loadXml($result, 'zone lookup response');
         $diagnostics = $this->extractResponseDiagnostics($document);
@@ -209,44 +178,27 @@ final class XmlGatewayClient
         return $document;
     }
 
-    private function buildSessionCreateRequest(?string $ownerUser, ?string $ownerContext): DOMDocument
+    private function buildSessionCreateRequest(): DOMDocument
     {
-        $owner = $this->ownerBlockXml($ownerUser, $ownerContext);
         return $this->loadXml(sprintf(
-            '<?xml version="1.0" encoding="utf-8"?><request><auth><user>%s</user><context>%s</context><password>%s</password></auth>%s<task><code>%s</code></task></request>',
+            '<?xml version="1.0" encoding="utf-8"?><request><auth><user>%s</user><context>%s</context><password>%s</password></auth><task><code>%s</code></task></request>',
             htmlspecialchars($this->config->user(), ENT_XML1),
             htmlspecialchars($this->config->context(), ENT_XML1),
             htmlspecialchars($this->config->password(), ENT_XML1),
-            $owner,
             self::TASK_AUTH_SESSION_CREATE
         ), 'AuthSessionCreate request');
     }
 
-    private function buildSessionDeleteRequest(string $hash, ?string $ownerUser, ?string $ownerContext): DOMDocument
+    private function buildSessionDeleteRequest(string $hash): DOMDocument
     {
-        $owner = $this->ownerBlockXml($ownerUser, $ownerContext);
         return $this->loadXml(sprintf(
-            '<?xml version="1.0" encoding="utf-8"?><request><auth><user>%s</user><context>%s</context><password>%s</password></auth>%s<task><code>%s</code><auth_session><hash>%s</hash></auth_session></task></request>',
+            '<?xml version="1.0" encoding="utf-8"?><request><auth><user>%s</user><context>%s</context><password>%s</password></auth><task><code>%s</code><auth_session><hash>%s</hash></auth_session></task></request>',
             htmlspecialchars($this->config->user(), ENT_XML1),
             htmlspecialchars($this->config->context(), ENT_XML1),
             htmlspecialchars($this->config->password(), ENT_XML1),
-            $owner,
             self::TASK_AUTH_SESSION_DELETE,
             htmlspecialchars($hash, ENT_XML1)
         ), 'AuthSessionDelete request');
-    }
-
-    private function ownerBlockXml(?string $ownerUser, ?string $ownerContext): string
-    {
-        if ($ownerUser === null || $ownerContext === null) {
-            return '';
-        }
-
-        return sprintf(
-            '<owner><user>%s</user><context>%s</context></owner>',
-            htmlspecialchars($ownerUser, ENT_XML1),
-            htmlspecialchars($ownerContext, ENT_XML1)
-        );
     }
 
     private function applyOptionalSystemNs(DOMDocument $request): void
@@ -352,15 +304,13 @@ final class XmlGatewayClient
         string $taskCode,
         string $apiCallType,
         string $authMode,
-        string $authVariant,
-        bool $mutation,
-        bool $ownerBlockIncluded
+        bool $mutation
     ): string {
         if ($mutation && $this->config->dryRun()) {
             throw new RuntimeException('Refusing XML mutation request because DRY_RUN is enabled.');
         }
 
-        $context = $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $authVariant, $mutation, $ownerBlockIncluded);
+        $context = $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $mutation);
         $context['payload'] = $this->sanitizeXml($body);
         $this->debug('InterNetX XML request prepared', $context);
 
@@ -379,7 +329,7 @@ final class XmlGatewayClient
             $error = curl_error($ch);
             curl_close($ch);
             throw new InterNetXApiException('InterNetX transport request failed: ' . $error, array_merge(
-                $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $authVariant, $mutation, $ownerBlockIncluded),
+                $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $mutation),
                 array(
                     'transport_success' => 'false',
                     'session_established' => $this->hasSession() ? 'true' : 'false',
@@ -390,7 +340,7 @@ final class XmlGatewayClient
         $statusCode = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         curl_close($ch);
 
-        $responseContext = $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $authVariant, $mutation, $ownerBlockIncluded);
+        $responseContext = $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $mutation);
         $responseContext['http_status'] = $statusCode;
         $responseContext['transport_success'] = $statusCode >= 200 && $statusCode < 300 ? 'true' : 'false';
         $responseContext['payload'] = $this->sanitizeXml($response);
@@ -409,7 +359,7 @@ final class XmlGatewayClient
 
         if ($statusCode < 200 || $statusCode >= 300) {
             throw new InterNetXApiException(sprintf('InterNetX transport request returned HTTP %d.', $statusCode), array_merge(
-                $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $authVariant, $mutation, $ownerBlockIncluded),
+                $this->requestContext($operation, $taskCode, $apiCallType, $authMode, $mutation),
                 $diagnostics,
                 array(
                     'http_status' => (string) $statusCode,
@@ -427,9 +377,7 @@ final class XmlGatewayClient
         string $taskCode,
         string $apiCallType,
         string $authMode,
-        string $authVariant,
-        bool $mutation,
-        bool $ownerBlockIncluded
+        bool $mutation
     ): array {
         return array(
             'operation' => $operation,
@@ -438,9 +386,7 @@ final class XmlGatewayClient
             'stage' => $this->stage,
             'mutation' => $mutation ? 'true' : 'false',
             'dry_run' => $this->config->dryRun() ? 'true' : 'false',
-            'owner_block_included' => $ownerBlockIncluded ? 'true' : 'false',
             'auth_mode' => $authMode,
-            'auth_variant' => $authVariant,
             'session_established' => $this->hasSession() ? 'true' : 'false',
         );
     }
@@ -454,7 +400,7 @@ final class XmlGatewayClient
             throw new RuntimeException('XML request has no root element.');
         }
 
-        foreach (array('auth', 'auth_session', 'owner') as $tagName) {
+        foreach (array('auth', 'auth_session') as $tagName) {
             $node = $request->getElementsByTagName($tagName)->item(0);
             if ($node !== null && $node->parentNode !== null) {
                 $node->parentNode->removeChild($node);
@@ -478,25 +424,6 @@ final class XmlGatewayClient
             $root->insertBefore($authSession, $insertBefore);
         }
 
-        $this->insertOwnerBlock($request, $root, $authSession);
-    }
-
-    private function insertOwnerBlock(DOMDocument $request, DOMElement $root, DOMElement $authSession): void
-    {
-        if ($this->sessionOwnerUser === null || $this->sessionOwnerContext === null) {
-            return;
-        }
-
-        $owner = $request->createElement('owner');
-        $owner->appendChild($request->createElement('user', $this->sessionOwnerUser));
-        $owner->appendChild($request->createElement('context', $this->sessionOwnerContext));
-
-        if ($authSession->nextSibling === null) {
-            $root->appendChild($owner);
-            return;
-        }
-
-        $root->insertBefore($owner, $authSession->nextSibling);
     }
 
     private function assertSessionEstablished(string $operation): void

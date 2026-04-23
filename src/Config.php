@@ -6,8 +6,6 @@ final class Config
     private string $user;
     private string $password;
     private string $context;
-    private string $ownerUser;
-    private string $ownerContext;
     private string $systemNs;
     private ?string $targetHost;
     private ?string $targetZone;
@@ -34,8 +32,6 @@ final class Config
         $this->user = $data['user'];
         $this->password = $data['password'];
         $this->context = $data['context'];
-        $this->ownerUser = $data['owner_user'];
-        $this->ownerContext = $data['owner_context'];
         $this->systemNs = $data['system_ns'];
         $this->targetHost = $data['target_host'];
         $this->targetZone = $data['target_zone'];
@@ -90,8 +86,6 @@ final class Config
             'user' => self::env('INTERNETX_USER', ''),
             'password' => self::env('INTERNETX_PASSWORD', ''),
             'context' => (string) self::env('INTERNETX_CONTEXT', '9'),
-            'owner_user' => (string) self::env('INTERNETX_OWNER_USER', ''),
-            'owner_context' => (string) self::env('INTERNETX_OWNER_CONTEXT', ''),
             'system_ns' => (string) self::env('INTERNETX_SYSTEM_NS', ''),
             'target_host' => $target['host'],
             'target_zone' => $target['zone'],
@@ -132,21 +126,6 @@ final class Config
     public function context(): string
     {
         return $this->context;
-    }
-
-    public function ownerUser(): string
-    {
-        return $this->ownerUser;
-    }
-
-    public function ownerContext(): string
-    {
-        return $this->ownerContext;
-    }
-
-    public function hasConfiguredOwner(): bool
-    {
-        return $this->ownerUser !== '' && $this->ownerContext !== '';
     }
 
     public function systemNs(): string
@@ -211,9 +190,6 @@ final class Config
             'DRY_RUN',
             'DEBUG',
             'RUN_ONCE',
-            'INTERNETX_AUTH_VARIANTS',
-            'INTERNETX_OWNER_USER',
-            'INTERNETX_OWNER_CONTEXT',
             'INTERNETX_SYSTEM_NS',
             'STATE_DIR',
             'CHECK_INTERVAL_SECONDS',
@@ -282,25 +258,6 @@ final class Config
         return $this->checkInterval;
     }
 
-    public function authVariants(): array
-    {
-        $configured = self::parseCsv(self::env('INTERNETX_AUTH_VARIANTS'));
-        if (!empty($configured)) {
-            return self::normalizeAuthVariants($configured, $this->hasConfiguredOwner());
-        }
-
-        if ($this->dryRun && $this->debug) {
-            $variants = array('auth_only', 'owner_same');
-            if ($this->hasConfiguredOwner()) {
-                $variants[] = 'owner_configured';
-            }
-
-            return $variants;
-        }
-
-        return array('auth_only');
-    }
-
     public function validateForGateway(): void
     {
         $required = array(
@@ -320,10 +277,6 @@ final class Config
         $hostParts = parse_url($this->host);
         if (!is_array($hostParts) || empty($hostParts['scheme']) || empty($hostParts['host'])) {
             throw new RuntimeException('INTERNETX_HOST must be a plausible absolute URL.');
-        }
-
-        if (($this->ownerUser === '') !== ($this->ownerContext === '')) {
-            throw new RuntimeException('INTERNETX_OWNER_USER and INTERNETX_OWNER_CONTEXT must be configured together.');
         }
 
         if (!$this->ipv4Enabled && !$this->ipv6Enabled) {
@@ -506,39 +459,6 @@ final class Config
 
         $normalized = strtolower(trim($value));
         return in_array($normalized, array('1', 'true', 'yes', 'on'), true);
-    }
-
-    private static function normalizeAuthVariants(array $variants, bool $hasConfiguredOwner): array
-    {
-        $normalized = array();
-        foreach ($variants as $variant) {
-            $name = strtolower(str_replace('-', '_', trim($variant)));
-            if ($name === 'a') {
-                $name = 'auth_only';
-            } elseif ($name === 'b') {
-                $name = 'owner_same';
-            } elseif ($name === 'c') {
-                $name = 'owner_configured';
-            }
-
-            if (!in_array($name, array('auth_only', 'owner_same', 'owner_configured'), true)) {
-                throw new RuntimeException(sprintf('Unsupported INTERNETX_AUTH_VARIANTS value: %s', $variant));
-            }
-
-            if ($name === 'owner_configured' && !$hasConfiguredOwner) {
-                continue;
-            }
-
-            if (!in_array($name, $normalized, true)) {
-                $normalized[] = $name;
-            }
-        }
-
-        if (empty($normalized)) {
-            throw new RuntimeException('No usable authentication variants configured.');
-        }
-
-        return $normalized;
     }
 
     private static function assertValidDomainName(string $domain, string $label): void
