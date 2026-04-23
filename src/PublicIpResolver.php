@@ -55,7 +55,7 @@ final class PublicIpResolver
         curl_setopt($ch, CURLOPT_TIMEOUT, $this->requestTimeout);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'internetx-dyndns/1.0');
+        curl_setopt($ch, CURLOPT_USERAGENT, AppInfo::userAgent());
 
         $response = curl_exec($ch);
         if ($response === false) {
