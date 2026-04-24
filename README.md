@@ -379,33 +379,6 @@ docker version
 docker compose version
 ```
 
-Then run the same `docker compose` commands shown above.
-
-## Release 0.3.0
-
-The project version is stored in [`VERSION`](VERSION). Runtime HTTP requests to public IP detection providers use the matching user agent, for example `internetx-dyndns/0.3.0`.
-
-Recommended git release commands:
-
-```bash
-git add .
-git commit -m "Release v0.3.0"
-git tag -a v0.3.0 -m "InterNetX DynDNS v0.3.0"
-git push origin HEAD
-git push origin v0.3.0
-```
-
-Recommended Docker Hub release commands:
-
-```bash
-docker build --build-arg APP_VERSION=0.3.0 -t worryboy/internetx-dyndns:0.3.0 .
-docker tag worryboy/internetx-dyndns:0.3.0 worryboy/internetx-dyndns:latest
-docker push worryboy/internetx-dyndns:0.3.0
-docker push worryboy/internetx-dyndns:latest
-```
-
-Keep the Git tag and Docker image tag aligned: GitHub `v0.3.0` maps to Docker Hub `worryboy/internetx-dyndns:0.3.0`. Move `latest` only when publishing the same tested release image.
-
 ## Files Of Interest
 
 - [`VERSION`](VERSION)
