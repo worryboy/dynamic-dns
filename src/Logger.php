@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * Writes simple structured logs and adds color when output goes to a terminal.
+ */
 final class Logger
 {
     private string $target;

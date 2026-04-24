@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * Handles InterNetX XML requests and keeps request/response handling in one place.
+ * It owns the session lifecycle, but leaves update decisions to the service layer.
+ */
 final class XmlGatewayClient
 {
     private const TASK_AUTH_SESSION_CREATE = '1321001';
@@ -104,7 +108,7 @@ final class XmlGatewayClient
         ));
     }
 
-    public function updateZoneRecords(string $domain, array $subdomains, ?string $ipv4, ?string $ipv6): void
+    public function updateZoneRecords(DOMDocument $zoneDocument, string $domain, array $targets, ?string $ipv4, ?string $ipv6): void
     {
         if ($this->config->dryRun()) {
             throw new RuntimeException('Refusing XML zone update mutation because DRY_RUN is enabled.');
@@ -117,8 +121,7 @@ final class XmlGatewayClient
         $this->assertSessionEstablished('live zone update');
         $this->config->validateForGateway();
 
-        $zoneDocument = $this->fetchZone($domain);
-        $requestDocument = $this->buildUpdateRequest($zoneDocument, $domain, $subdomains, $ipv4, $ipv6);
+        $requestDocument = $this->buildUpdateRequest($zoneDocument, $domain, $targets, $ipv4, $ipv6);
         $result = $this->request(
             $requestDocument->saveXML(),
             'ZoneUpdate',
@@ -132,20 +135,24 @@ final class XmlGatewayClient
         $this->assertApiSuccess($diagnostics, 'Live zone update failed', 'ZoneUpdate', true);
     }
 
-    public function validateTargetAccess(string $domain, array $subdomains, bool $requireIpv4, bool $requireIpv6): void
+    public function inspectTargets(string $domain, array $targets, bool $requireIpv4, bool $requireIpv6): array
     {
         $this->assertSessionEstablished('read-only target validation');
         $this->config->validateForGateway();
 
         $zoneDocument = $this->fetchZone($domain);
-        foreach ($subdomains as $subdomain) {
-            if ($requireIpv4) {
-                $this->assertRecordExists($zoneDocument, $domain, $subdomain, 'A');
-            }
-            if ($requireIpv6) {
-                $this->assertRecordExists($zoneDocument, $domain, $subdomain, 'AAAA');
-            }
+        $records = array();
+        foreach ($targets as $target) {
+            $records[$target->host()] = array(
+                'ipv4' => $this->recordValue($zoneDocument, $domain, $target->subdomain(), 'A', $requireIpv4),
+                'ipv6' => $this->recordValue($zoneDocument, $domain, $target->subdomain(), 'AAAA', $requireIpv6),
+            );
         }
+
+        return array(
+            'zone_document' => $zoneDocument,
+            'records' => $records,
+        );
     }
 
     private function fetchZone(string $domain): DOMDocument
@@ -226,7 +233,7 @@ final class XmlGatewayClient
     private function buildUpdateRequest(
         DOMDocument $zoneDocument,
         string $domain,
-        array $subdomains,
+        array $targets,
         ?string $ipv4,
         ?string $ipv6
     ): DOMDocument {
@@ -248,7 +255,7 @@ final class XmlGatewayClient
         $fragment = $request->importNode($zone, true);
         $request->getElementsByTagName('task')->item(0)->appendChild($fragment);
 
-        foreach ($subdomains as $subdomain) {
+        foreach ($this->uniqueSubdomains($targets) as $subdomain) {
             if ($ipv4 !== null) {
                 $this->replaceRecordValue($request, $subdomain, 'A', $ipv4, $domain);
             }
@@ -283,12 +290,12 @@ final class XmlGatewayClient
         $entries->item(0)->nodeValue = $value;
     }
 
-    private function assertRecordExists(DOMDocument $document, string $domain, string $subdomain, string $type): void
+    private function recordValue(DOMDocument $document, string $domain, string $subdomain, string $type, bool $required): ?string
     {
         $xpath = new DOMXPath($document);
         $query = sprintf("//zone/rr[name='%s' and type='%s']/value", $subdomain, $type);
         $entries = $xpath->query($query);
-        if ($entries->length !== 1) {
+        if ($entries->length > 1) {
             throw new RuntimeException(sprintf(
                 'DNS target matching failed after successful authenticated zone read: expected exactly one %s record for %s.%s.',
                 $type,
@@ -296,6 +303,21 @@ final class XmlGatewayClient
                 $domain
             ));
         }
+
+        if ($entries->length === 0) {
+            if ($required) {
+                throw new RuntimeException(sprintf(
+                    'DNS target matching failed after successful authenticated zone read: expected exactly one %s record for %s.%s.',
+                    $type,
+                    $subdomain,
+                    $domain
+                ));
+            }
+
+            return null;
+        }
+
+        return trim($entries->item(0)->nodeValue);
     }
 
     private function request(
@@ -424,6 +446,16 @@ final class XmlGatewayClient
             $root->insertBefore($authSession, $insertBefore);
         }
 
+    }
+
+    private function uniqueSubdomains(array $targets): array
+    {
+        $subdomains = array();
+        foreach ($targets as $target) {
+            $subdomains[$target->subdomain()] = true;
+        }
+
+        return array_keys($subdomains);
     }
 
     private function assertSessionEstablished(string $operation): void
