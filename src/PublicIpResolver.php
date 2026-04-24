@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * Resolves the current public IPv4 and IPv6 addresses from configured providers.
+ * It only handles detection and basic validation.
+ */
 final class PublicIpResolver
 {
     private array $ipv4Providers;

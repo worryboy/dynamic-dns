@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * Loads runtime config from the environment and keeps target parsing in one place.
+ * It does not talk to the API or decide whether an update should happen.
+ */
 final class Config
 {
     private string $host;
@@ -7,15 +11,17 @@ final class Config
     private string $password;
     private string $context;
     private string $systemNs;
-    private ?string $targetHost;
-    private ?string $targetZone;
-    private ?string $targetSubdomain;
+    private string $pushoverAppKey;
+    private string $pushoverUserKey;
+    private string $pushoverLocationName;
+    private array $targets;
     private array $domains;
     private array $ipv4Providers;
     private array $ipv6Providers;
     private bool $ipv4Enabled;
     private bool $ipv6Enabled;
     private bool $dryRun;
+    private bool $forceUpdateOnNoChange;
     private bool $debug;
     private bool $runOnce;
     private int $connectTimeout;
@@ -33,15 +39,17 @@ final class Config
         $this->password = $data['password'];
         $this->context = $data['context'];
         $this->systemNs = $data['system_ns'];
-        $this->targetHost = $data['target_host'];
-        $this->targetZone = $data['target_zone'];
-        $this->targetSubdomain = $data['target_subdomain'];
+        $this->pushoverAppKey = $data['pushover_app_key'];
+        $this->pushoverUserKey = $data['pushover_user_key'];
+        $this->pushoverLocationName = $data['pushover_location_name'];
+        $this->targets = $data['targets'];
         $this->domains = $data['domains'];
         $this->ipv4Providers = $data['ipv4_providers'];
         $this->ipv6Providers = $data['ipv6_providers'];
         $this->ipv4Enabled = $data['ipv4_enabled'];
         $this->ipv6Enabled = $data['ipv6_enabled'];
         $this->dryRun = $data['dry_run'];
+        $this->forceUpdateOnNoChange = $data['force_update_on_no_change'];
         $this->debug = $data['debug'];
         $this->runOnce = $data['run_once'];
         $this->connectTimeout = $data['connect_timeout'];
@@ -58,11 +66,10 @@ final class Config
         $projectRoot = rtrim($projectRoot, DIRECTORY_SEPARATOR);
         self::loadEnvFile($projectRoot);
 
-        $domains = self::loadTargetDomains();
-        if (empty($domains)) {
-            throw new RuntimeException('No target configuration found. Set TARGET_HOST.');
+        $targets = self::loadTargets();
+        if (empty($targets)) {
+            throw new RuntimeException('No target configuration found. Set TARGET_HOST or TARGET_HOSTS.');
         }
-        $target = self::targetFromDomains($domains);
 
         $ipv4Providers = self::parseCsv(self::env('PUBLIC_IPV4_PROVIDERS'));
         if (empty($ipv4Providers)) {
@@ -87,15 +94,17 @@ final class Config
             'password' => self::env('INTERNETX_PASSWORD', ''),
             'context' => (string) self::env('INTERNETX_CONTEXT', '9'),
             'system_ns' => (string) self::env('INTERNETX_SYSTEM_NS', ''),
-            'target_host' => $target['host'],
-            'target_zone' => $target['zone'],
-            'target_subdomain' => $target['subdomain'],
-            'domains' => $domains,
+            'pushover_app_key' => (string) self::env('PUSHOVER_APP_KEY', ''),
+            'pushover_user_key' => (string) self::env('PUSHOVER_USER_KEY', ''),
+            'pushover_location_name' => (string) self::env('PUSHOVER_LOCATION_NAME', ''),
+            'targets' => $targets,
+            'domains' => self::groupTargetsByZone($targets),
             'ipv4_providers' => $ipv4Providers,
             'ipv6_providers' => $ipv6Providers,
             'ipv4_enabled' => self::boolEnv(self::env('ENABLE_IPV4', 'true')),
             'ipv6_enabled' => self::boolEnv(self::env('ENABLE_IPV6', 'false')),
             'dry_run' => self::boolEnv(self::env('DRY_RUN', 'false')),
+            'force_update_on_no_change' => self::boolEnv(self::env('FORCE_UPDATE_ON_NO_CHANGE', 'false')),
             'debug' => self::boolEnv(self::env('DEBUG', 'false')),
             'run_once' => self::boolEnv(self::env('RUN_ONCE', 'false')),
             'connect_timeout' => self::positiveInt(self::env('HTTP_CONNECT_TIMEOUT', '10'), 10),
@@ -133,6 +142,21 @@ final class Config
         return $this->systemNs;
     }
 
+    public function pushoverAppKey(): string
+    {
+        return $this->pushoverAppKey;
+    }
+
+    public function pushoverUserKey(): string
+    {
+        return $this->pushoverUserKey;
+    }
+
+    public function pushoverLocationName(): string
+    {
+        return $this->pushoverLocationName;
+    }
+
     public function xmlGetZone(): string
     {
         return $this->projectRoot . DIRECTORY_SEPARATOR . 'request-get.xml';
@@ -165,29 +189,54 @@ final class Config
 
     public function targetHost(): ?string
     {
-        return $this->targetHost;
+        $target = $this->primaryTarget();
+        return $target === null ? null : $target->host();
     }
 
     public function targetZone(): ?string
     {
-        return $this->targetZone;
+        $target = $this->primaryTarget();
+        return $target === null ? null : $target->zone();
     }
 
     public function targetSubdomain(): ?string
     {
-        return $this->targetSubdomain;
+        $target = $this->primaryTarget();
+        return $target === null ? null : $target->subdomain();
     }
 
     public function targetZoneExplicit(): bool
     {
-        return self::normalizeOptional(self::env('TARGET_ZONE')) !== null;
+        $target = $this->primaryTarget();
+        return $target !== null && $target->zoneSource() === 'explicit';
+    }
+
+    public function targetCount(): int
+    {
+        return count($this->targets);
+    }
+
+    public function multiTargetMode(): bool
+    {
+        return $this->targetCount() > 1;
+    }
+
+    public function targets(): array
+    {
+        return $this->targets;
     }
 
     public function configuredOptionalSettings(): array
     {
         return $this->configuredNames(array(
+            'TARGET_HOSTS',
             'TARGET_ZONE',
+            'TARGET_HOST_ZONES',
+            'PUSHOVER_APP_KEY',
+            'PUSHOVER_USER_KEY',
+            'PUSHOVER_LOCATION_NAME',
             'DRY_RUN',
+            'FORCE_UPDATE_ON_NO_CHANGE',
             'DEBUG',
             'RUN_ONCE',
             'INTERNETX_SYSTEM_NS',
@@ -238,6 +287,11 @@ final class Config
         return $this->debug;
     }
 
+    public function forceUpdateOnNoChange(): bool
+    {
+        return $this->forceUpdateOnNoChange;
+    }
+
     public function runOnce(): bool
     {
         return $this->runOnce;
@@ -265,13 +319,16 @@ final class Config
             'INTERNETX_USER' => $this->user,
             'INTERNETX_PASSWORD' => $this->password,
             'INTERNETX_CONTEXT' => $this->context,
-            'TARGET_HOST' => $this->targetHost ?? '',
         );
 
         foreach ($required as $name => $value) {
             if ($value === '') {
                 throw new RuntimeException(sprintf('Missing required configuration: %s', $name));
             }
+        }
+
+        if (empty($this->targets)) {
+            throw new RuntimeException('Missing required target configuration: set TARGET_HOST or TARGET_HOSTS.');
         }
 
         $hostParts = parse_url($this->host);
@@ -283,26 +340,63 @@ final class Config
             throw new RuntimeException('At least one public IP family must be enabled. Set ENABLE_IPV4=true or ENABLE_IPV6=true.');
         }
 
-        foreach ($this->domains as $domain => $subdomains) {
-            self::assertValidDomainName($domain, 'target zone');
-            foreach ($subdomains as $subdomain) {
-                $host = $subdomain === '@' ? $domain : $subdomain . '.' . $domain;
-                self::assertValidDomainName($host, 'target host');
-            }
+        foreach ($this->targets as $target) {
+            self::assertValidDomainName($target->zone(), 'target zone');
+            self::assertValidDomainName($target->host(), 'target host');
         }
     }
 
-    private static function loadTargetDomains(): array
+    private function primaryTarget(): ?TargetHost
+    {
+        if (empty($this->targets)) {
+            return null;
+        }
+
+        return $this->targets[0];
+    }
+
+    private static function loadTargets(): array
     {
         $targetHost = self::normalizeOptional(self::env('TARGET_HOST'));
-        if ($targetHost === null) {
+        $targetHosts = self::parseCsv(self::env('TARGET_HOSTS'));
+        $targetZone = self::normalizeOptional(self::env('TARGET_ZONE'));
+        $targetHostZones = self::parseTargetHostZones(self::env('TARGET_HOST_ZONES'));
+
+        if ($targetHost !== null && !empty($targetHosts)) {
+            throw new RuntimeException('Use either TARGET_HOST or TARGET_HOSTS, not both.');
+        }
+
+        if ($targetHost === null && empty($targetHosts)) {
             return array();
         }
 
-        return self::domainsFromTargetHost($targetHost, self::normalizeOptional(self::env('TARGET_ZONE')));
+        if (!empty($targetHosts) && $targetZone !== null) {
+            throw new RuntimeException('TARGET_ZONE is only supported in single-target mode. Remove TARGET_ZONE or use TARGET_HOST.');
+        }
+
+        if ($targetHost !== null && !empty($targetHostZones)) {
+            throw new RuntimeException('TARGET_HOST_ZONES is only supported with TARGET_HOSTS multi-target mode.');
+        }
+
+        $targets = array();
+        if ($targetHost !== null) {
+            $targets[] = self::targetFromHost($targetHost, $targetZone);
+        } else {
+            foreach ($targetHosts as $host) {
+                $normalizedHost = strtolower(rtrim(trim($host), '.'));
+                $targets[] = self::targetFromHost(
+                    $host,
+                    $targetHostZones[$normalizedHost] ?? null
+                );
+            }
+
+            self::assertNoUnusedTargetHostZones($targetHosts, $targetHostZones);
+        }
+
+        return self::deduplicateTargets($targets);
     }
 
-    private static function domainsFromTargetHost(string $targetHost, ?string $targetZone): array
+    private static function targetFromHost(string $targetHost, ?string $targetZone): TargetHost
     {
         $host = strtolower(rtrim(trim($targetHost), '.'));
         self::assertValidDomainName($host, 'TARGET_HOST');
@@ -313,7 +407,18 @@ final class Config
                 throw new RuntimeException('TARGET_HOST must include a host label and a zone, for example subleveldomain.domain.com.');
             }
 
+            if (self::requiresExplicitZoneHint($labels)) {
+                throw new RuntimeException(sprintf(
+                    'Ambiguous zone inference for target host %s. Set TARGET_ZONE for single-target mode or TARGET_HOST_ZONES=%s=<zone> for multi-target mode.',
+                    $host,
+                    $host
+                ));
+            }
+
             $targetZone = implode('.', array_slice($labels, -2));
+            $zoneSource = 'inferred_last_two_labels';
+        } else {
+            $zoneSource = 'explicit';
         }
 
         $zone = strtolower(rtrim(trim($targetZone), '.'));
@@ -333,21 +438,33 @@ final class Config
             throw new RuntimeException('TARGET_HOST did not produce a valid subdomain label.');
         }
 
-        return array($zone => array($subdomain));
+        return new TargetHost($host, $zone, $subdomain, $zoneSource);
     }
 
-    private static function targetFromDomains(array $domains): array
+    private static function deduplicateTargets(array $targets): array
     {
-        $domain = (string) array_key_first($domains);
-        $subdomains = $domains[$domain];
-        $subdomain = (string) reset($subdomains);
-        $host = $subdomain === '@' ? $domain : $subdomain . '.' . $domain;
+        $unique = array();
+        foreach ($targets as $target) {
+            $unique[$target->host()] = $target;
+        }
 
-        return array(
-            'host' => $host,
-            'zone' => $domain,
-            'subdomain' => $subdomain,
-        );
+        return array_values($unique);
+    }
+
+    private static function groupTargetsByZone(array $targets): array
+    {
+        $domains = array();
+        foreach ($targets as $target) {
+            if (!isset($domains[$target->zone()])) {
+                $domains[$target->zone()] = array();
+            }
+
+            if (!in_array($target->subdomain(), $domains[$target->zone()], true)) {
+                $domains[$target->zone()][] = $target->subdomain();
+            }
+        }
+
+        return $domains;
     }
 
     private static function parseCsv(?string $value): array
@@ -360,6 +477,73 @@ final class Config
         return array_values(array_filter($parts, static function ($item) {
             return $item !== '';
         }));
+    }
+
+    private static function parseTargetHostZones(?string $value): array
+    {
+        $mappings = array();
+        foreach (self::parseCsv($value) as $entry) {
+            $separator = strpos($entry, '=');
+            if ($separator === false) {
+                throw new RuntimeException('TARGET_HOST_ZONES entries must use host=zone format.');
+            }
+
+            $host = strtolower(rtrim(trim(substr($entry, 0, $separator)), '.'));
+            $zone = strtolower(rtrim(trim(substr($entry, $separator + 1)), '.'));
+            if ($host === '' || $zone === '') {
+                throw new RuntimeException('TARGET_HOST_ZONES entries must use non-empty host=zone format.');
+            }
+
+            self::assertValidDomainName($host, 'TARGET_HOST_ZONES host');
+            self::assertValidDomainName($zone, 'TARGET_HOST_ZONES zone');
+            $mappings[$host] = $zone;
+        }
+
+        return $mappings;
+    }
+
+    private static function assertNoUnusedTargetHostZones(array $targetHosts, array $targetHostZones): void
+    {
+        if (empty($targetHostZones)) {
+            return;
+        }
+
+        $normalizedTargets = array();
+        foreach ($targetHosts as $targetHost) {
+            $normalizedTargets[strtolower(rtrim(trim($targetHost), '.'))] = true;
+        }
+
+        foreach (array_keys($targetHostZones) as $mappedHost) {
+            if (!isset($normalizedTargets[$mappedHost])) {
+                throw new RuntimeException(sprintf(
+                    'TARGET_HOST_ZONES contains a mapping for %s, but that host is not present in TARGET_HOSTS.',
+                    $mappedHost
+                ));
+            }
+        }
+    }
+
+    private static function requiresExplicitZoneHint(array $labels): bool
+    {
+        if (count($labels) < 4) {
+            return false;
+        }
+
+        $tld = $labels[count($labels) - 1];
+        $secondLevel = $labels[count($labels) - 2];
+        if (strlen($tld) !== 2) {
+            return false;
+        }
+
+        return in_array($secondLevel, array(
+            'ac',
+            'co',
+            'com',
+            'edu',
+            'gov',
+            'net',
+            'org',
+        ), true);
     }
 
     private static function resolvePath(string $projectRoot, string $path): string

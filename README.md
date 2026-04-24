@@ -1,20 +1,23 @@
 # InterNetX DynDNS
 
-Current release: `0.1.0`
+Current release: `0.3.0`
 
-`InterNetX DynDNS` is a containerized PHP worker that keeps one explicitly configured DNS host in sync with the current public IP address of the machine or network running the container.
+`InterNetX DynDNS` is a containerized PHP worker that keeps one or more explicitly configured DNS hosts in sync with the current public IP address of the machine or network running the container.
 
 The worker uses the InterNetX/AutoDNS XML gateway. The default live XML API endpoint remains `https://gateway.autodns.com`, which is current provider API terminology. Runtime API calls use the documented XML `auth_session` flow: create a session, reuse its hash for this run, then close it.
+
+Source code is available on GitHub: [worryboy/internetx-dyndns](https://github.com/worryboy/internetx-dyndns)
+Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://hub.docker.com/r/worryboy/internetx-dyndns)
 
 ## What It Does
 
 - runs as a PHP CLI worker in a container
 - detects the current public IPv4 address
 - optionally detects the current public IPv6 address
-- reads one configured `TARGET_HOST`
+- reads one configured `TARGET_HOST` or multiple `TARGET_HOSTS`
 - creates an InterNetX XML AuthSession before provider validation
 - fetches the current InterNetX zone data with a non-mutating zone inquiry
-- updates existing `A` and optional `AAAA` records only when the detected IP changed
+- updates existing `A` and optional `AAAA` records only when the detected IP changed for each configured target
 - closes the InterNetX XML AuthSession at the end of the run
 - stores last successful IP values in a persistent state directory
 - supports `DRY_RUN=true` for safe local validation before any live update
@@ -34,10 +37,17 @@ INTERNETX_CONTEXT=9
 TARGET_HOST=subleveldomain.domain.com
 ```
 
+For multi-target mode, use:
+
+```env
+TARGET_HOSTS=app1.example.com,app2.example.com,app3.example.com
+```
+
 For safe local validation, keep:
 
 ```env
 DRY_RUN=true
+FORCE_UPDATE_ON_NO_CHANGE=false
 RUN_ONCE=true
 DEBUG=true
 ```
@@ -46,23 +56,55 @@ For a real update run, set:
 
 ```env
 DRY_RUN=false
+FORCE_UPDATE_ON_NO_CHANGE=false
 RUN_ONCE=false
 DEBUG=false
 ```
 
-`TARGET_HOST` is the only DNS target this worker considers. For example:
+Optional Pushover notifications:
+
+```env
+PUSHOVER_APP_KEY=your-pushover-app-token
+PUSHOVER_USER_KEY=your-pushover-user-key
+PUSHOVER_LOCATION_NAME=Home-Server
+```
+
+All three values are required to enable notifications. If any of them are missing, Pushover stays disabled.
+
+Example:
+
+```text
+Zurich IPv4 Address: 109.40.176.130
+```
+
+Single-target mode stays simple:
 
 - `TARGET_HOST=subleveldomain.domain.com` becomes zone `domain.com` and subdomain `subleveldomain`.
 - `TARGET_HOST=vpn.office.example.com` becomes zone `example.com` and subdomain `vpn.office`.
 - By default, the zone is inferred from the last two labels.
 - Set `TARGET_ZONE=example.co.uk` if the zone cannot be inferred from the last two labels.
 
+Multi-target mode uses a comma-separated `TARGET_HOSTS` list:
+
+- `TARGET_HOSTS=app1.example.com,app2.example.com,app3.example.com`
+- all configured hosts use the same detected public IPv4/IPv6 values in a cycle
+- the worker authenticates once, validates all targets, updates only the targets that need changes, then closes the session
+- `TARGET_ZONE` is only supported in single-target mode
+- if a multi-target hostname needs an explicit zone hint, use `TARGET_HOST_ZONES=host=zone,host=zone`
+- if both `TARGET_HOST` and `TARGET_HOSTS` are set, startup fails fast with a clear warning because that configuration is ambiguous
+
+This is useful when one public host runs several services behind a reverse proxy such as Traefik and several DNS names should always resolve to that same host IP.
+
 ## DNS Target Records
 
-Set `TARGET_HOST` to the full hostname that should follow your current public IP address:
+Set `TARGET_HOST` to one full hostname, or `TARGET_HOSTS` to several full hostnames that should all follow the same current public IP address:
 
 ```env
 TARGET_HOST=sublevel.domain.tld
+```
+
+```env
+TARGET_HOSTS=app1.domain.tld,app2.domain.tld,app3.domain.tld
 ```
 
 The worker interprets that value as:
@@ -71,12 +113,26 @@ The worker interprets that value as:
 - zone/domain: `domain.tld`
 - host/subdomain label: `sublevel`
 
-If the zone cannot be inferred from the last two labels, set `TARGET_ZONE` explicitly:
+If the zone cannot be inferred from the last two labels in single-target mode, set `TARGET_ZONE` explicitly:
 
 ```env
 TARGET_HOST=home.example.co.uk
 TARGET_ZONE=example.co.uk
 ```
+
+If you use multi-target mode and one hostname is ambiguous, add an explicit per-host zone hint:
+
+```env
+TARGET_HOSTS=app.example.co.uk,service.example.com.au
+TARGET_HOST_ZONES=app.example.co.uk=example.co.uk,service.example.com.au=example.com.au
+```
+
+Automatic last-two-label inference works well for normal names such as `app.example.com` and `vpn.office.example.org`, but it is intentionally rejected for common multi-label ccTLD patterns such as:
+
+- `app.example.co.uk`
+- `service.example.com.au`
+
+In those cases the worker now fails early with a clear error instead of silently guessing the wrong zone.
 
 DNS record types map directly to enabled protocols:
 
@@ -95,9 +151,9 @@ TTL controls how long DNS resolvers may cache the old value before asking again.
 
 The worker does not manage TTL explicitly. It reads the existing zone record, replaces the `A` or `AAAA` value, and preserves the rest of the returned record data. If the existing record already has a TTL, that TTL should remain unchanged by this worker. Configure TTL in the InterNetX/AutoDNS zone before relying on the updater.
 
-Before running live updates, check the zone:
+Before running live updates, check the zone for every configured target:
 
-- `TARGET_HOST` is exactly the hostname you want to update.
+- `TARGET_HOST` or each `TARGET_HOSTS` entry is exactly the hostname you want to update.
 - The inferred or configured zone is correct.
 - The target `A` record exists if IPv4 updates are enabled.
 - The target `AAAA` record exists if IPv6 updates are enabled.
@@ -111,15 +167,21 @@ Before running live updates, check the zone:
 | `INTERNETX_USER` | required | Yes | XML API username used to create and delete the AuthSession. | `my-user` |
 | `INTERNETX_PASSWORD` | required | Yes | XML API password used to create and delete the AuthSession. Never logged. | `secret` |
 | `INTERNETX_CONTEXT` | required | Yes | XML API auth context. This setup uses `9`. | `9` |
-| `TARGET_HOST` | required | Yes | One fully qualified host this worker may validate and update. | `subleveldomain.domain.com` |
+| `TARGET_HOST` | required target selection | Yes, unless `TARGET_HOSTS` is used | One fully qualified host this worker may validate and update. | `subleveldomain.domain.com` |
+| `TARGET_HOSTS` | optional multi-target | No | Comma-separated fully qualified hosts that should all use the same detected public IPs in one cycle. Use instead of `TARGET_HOST`. | `app1.example.com,app2.example.com` |
+| `TARGET_HOST_ZONES` | optional multi-target | No | Comma-separated `host=zone` mappings for ambiguous multi-target hosts such as `app.example.co.uk`. | `app.example.co.uk=example.co.uk` |
 | `ENABLE_IPV4` | core runtime | Yes | Enables IPv4 public IP detection and `A` record update decisions. At least one of IPv4/IPv6 must be enabled. | `true` |
 | `ENABLE_IPV6` | core runtime | Yes | Enables IPv6 public IP detection and `AAAA` record update decisions. At least one of IPv4/IPv6 must be enabled. | `false` |
 | `PUBLIC_IPV4_PROVIDERS` | core runtime | Yes | Comma-separated public IPv4 detection endpoints. Used only when `ENABLE_IPV4=true`. | `https://api.ipify.org` |
 | `PUBLIC_IPV6_PROVIDERS` | core runtime | Yes | Comma-separated public IPv6 detection endpoints. Used only when `ENABLE_IPV6=true`. | `https://api64.ipify.org` |
 | `DRY_RUN` | optional runtime/debug | No | Validates config, may run read-only zone preflight, detects public IP, compares state, and logs what would happen without performing a live DNS update. | `true` |
+| `FORCE_UPDATE_ON_NO_CHANGE` | optional runtime/debug | No | When `false` (default), skip unnecessary live update requests if the detected public IP is unchanged and all targets are already in sync. When `true`, still allow live update requests in that no-change case. | `false` |
+| `PUSHOVER_APP_KEY` | optional notifications | No | Pushover application API token. Required together with `PUSHOVER_USER_KEY` and `PUSHOVER_LOCATION_NAME` to enable notifications. | `abc123...` |
+| `PUSHOVER_USER_KEY` | optional notifications | No | Pushover user or group key. Required together with `PUSHOVER_APP_KEY` and `PUSHOVER_LOCATION_NAME` to enable notifications. | `uQiR...` |
+| `PUSHOVER_LOCATION_NAME` | optional notifications | No | Short location label placed at the beginning of the notification message. | `Home-Server` |
 | `RUN_ONCE` | optional runtime/debug | No | Executes one check cycle and exits instead of looping. | `true` |
 | `DEBUG` | optional runtime/debug | No | Prints detailed diagnostics without exposing secrets, including sanitized XML request/response payloads for provider calls. | `true` |
-| `TARGET_ZONE` | optional runtime/debug | No | Overrides zone inference from `TARGET_HOST`. | `example.co.uk` |
+| `TARGET_ZONE` | optional runtime/debug | No | Overrides zone inference from `TARGET_HOST` in single-target mode only. | `example.co.uk` |
 | `INTERNETX_SYSTEM_NS` | optional runtime/debug | No | Optional zone inquiry selector for the first system-managed nameserver. Usually unset. | `ns1.routing.net` |
 | `STATE_DIR` | optional runtime/debug | No | Directory for persisted `last_ipv4` and `last_ipv6` values. | `/app/state` |
 | `CHECK_INTERVAL_SECONDS` | optional runtime/debug | No | Sleep interval for continuous container mode. Ignored when `RUN_ONCE=true`. | `300` |
@@ -137,7 +199,7 @@ Use dry-run mode before allowing live DNS updates:
 
 ```bash
 cp .env.example .env
-# edit .env and set INTERNETX_USER, INTERNETX_PASSWORD, and TARGET_HOST
+# edit .env and set INTERNETX_USER, INTERNETX_PASSWORD, and TARGET_HOST or TARGET_HOSTS
 docker compose build
 docker compose run --rm internetx-dyndns
 ```
@@ -151,9 +213,11 @@ DEBUG=true
 ```
 
 - `DRY_RUN=true` validates config, detects the public IP, creates and closes an InterNetX AuthSession, may run read-only InterNetX zone validation, compares state, and logs what would happen without sending a live DNS update.
+- `FORCE_UPDATE_ON_NO_CHANGE=false` is the default and avoids unnecessary live update requests when the detected public IP is unchanged and every target already matches that IP.
 - `RUN_ONCE=true` executes a single check cycle and exits instead of looping continuously.
 - `DEBUG=true` prints detailed diagnostic logging without exposing passwords, session hashes, or sensitive credentials. Provider request/response payloads are sanitized and labeled as `auth_session_create`, `read_only_preflight`, `live_mutation`, or `session_cleanup`.
 - With `DEBUG=true`, the worker logs each runtime stage as it moves through config validation, public IP detection, authentication/session preflight, target validation, update decision, live mutation, and session cleanup.
+- If `PUSHOVER_APP_KEY`, `PUSHOVER_USER_KEY`, and `PUSHOVER_LOCATION_NAME` are all configured, the worker can send a Pushover notification when a real public IP change is detected.
 
 Public IP detection runs before any InterNetX authentication request, so local network/IP behavior is visible even if API login fails later. IPv4 and IPv6 results are logged explicitly:
 
@@ -168,6 +232,46 @@ Public IP detection runs before any InterNetX authentication request, so local n
 Terminal severity markers are colorized when logging to stdout or stderr: debug is dim gray, info is blue, success is green, warning is yellow, and error is red. Yellow means a partial detection problem that can still continue; red means no usable public IP was found and execution stops.
 
 In continuous mode, unchanged cycles are intentionally concise. If a detected address matches the stored state, the worker logs `IPv4 unchanged` or `IPv6 unchanged` without repeating the full address in normal output. New or changed addresses are printed in full. Debug mode still includes the detected values for deeper diagnostics.
+
+Unchanged public IP does not automatically mean every target is already synchronized. The worker still validates the configured targets against current DNS data and only skips live mutation by default when every target is already in sync. Newly added or out-of-sync targets may still require update even if the detected public IP itself is unchanged.
+
+If you set `FORCE_UPDATE_ON_NO_CHANGE=true`, the worker is allowed to continue with a live update request even when the detected public IP itself did not change and all targets are already in sync. Most users should leave this disabled to save unnecessary API requests.
+
+## Pushover Notifications
+
+Pushover support is optional. It is enabled only when all three variables are configured:
+
+```env
+PUSHOVER_APP_KEY=your-pushover-app-token
+PUSHOVER_USER_KEY=your-pushover-user-key
+PUSHOVER_LOCATION_NAME=Home-Server
+```
+
+Notification behavior:
+
+- notifications are sent only when the detected public IP actually changed
+- no notification is sent on unchanged runs
+- no notification is sent just because a target was added or was out of sync
+- `DRY_RUN=true` suppresses Pushover delivery even when a real IP change was detected
+- notification failure does not stop the DNS update workflow
+
+Example message format:
+
+```text
+Zurich IPv4 Address: 109.40.176.130
+```
+
+```text
+Home-Server IPv4 Address: 1.2.3.4
+Home-Server IPv6 Address: 2001:db8::1234
+```
+
+If only one family changed, only that line is sent. The configured location name always appears at the beginning of the message text.
+
+## Runtime Modes
+
+- Dry-run mode: validates configuration, detects public IPs, performs read-only provider checks, logs what would happen, and suppresses both live DNS mutation and Pushover delivery.
+- Live mode: performs DNS updates when required and may send a Pushover notification when a real public IP change is detected.
 
 Example dry-run startup:
 
@@ -251,7 +355,7 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine3.22`
 - app image: `internetx-dyndns:local`
-- release image: `worryboy/internetx-dyndns:0.1.0`
+- release image: `worryboy/internetx-dyndns:0.3.0`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`
@@ -279,30 +383,30 @@ docker compose version
 
 Then run the same `docker compose` commands shown above.
 
-## Release 0.1.0
+## Release 0.3.0
 
-The project version is stored in [`VERSION`](VERSION). Runtime HTTP requests to public IP detection providers use the matching user agent, for example `internetx-dyndns/0.1.0`.
+The project version is stored in [`VERSION`](VERSION). Runtime HTTP requests to public IP detection providers use the matching user agent, for example `internetx-dyndns/0.3.0`.
 
 Recommended git release commands:
 
 ```bash
 git add .
-git commit -m "Release v0.1.0"
-git tag -a v0.1.0 -m "InterNetX DynDNS v0.1.0"
+git commit -m "Release v0.3.0"
+git tag -a v0.3.0 -m "InterNetX DynDNS v0.3.0"
 git push origin HEAD
-git push origin v0.1.0
+git push origin v0.3.0
 ```
 
 Recommended Docker Hub release commands:
 
 ```bash
-docker build --build-arg APP_VERSION=0.1.0 -t worryboy/internetx-dyndns:0.1.0 .
-docker tag worryboy/internetx-dyndns:0.1.0 worryboy/internetx-dyndns:latest
-docker push worryboy/internetx-dyndns:0.1.0
+docker build --build-arg APP_VERSION=0.3.0 -t worryboy/internetx-dyndns:0.3.0 .
+docker tag worryboy/internetx-dyndns:0.3.0 worryboy/internetx-dyndns:latest
+docker push worryboy/internetx-dyndns:0.3.0
 docker push worryboy/internetx-dyndns:latest
 ```
 
-Keep the Git tag and Docker image tag aligned: GitHub `v0.1.0` maps to Docker Hub `worryboy/internetx-dyndns:0.1.0`. Move `latest` only when publishing the same tested release image.
+Keep the Git tag and Docker image tag aligned: GitHub `v0.3.0` maps to Docker Hub `worryboy/internetx-dyndns:0.3.0`. Move `latest` only when publishing the same tested release image.
 
 ## Files Of Interest
 
@@ -316,3 +420,9 @@ Keep the Git tag and Docker image tag aligned: GitHub `v0.1.0` maps to Docker Hu
 - [`.env.example`](.env.example)
 - [`docker-compose.yml`](docker-compose.yml)
 - [`Dockerfile`](Dockerfile)
+
+## Provenance
+
+This repository evolved from the earlier PHP DynDNS project [`AndLindemann/php-dyndns`](https://github.com/AndLindemann/php-dyndns). Since then it has been substantially adapted and extended into a container-oriented InterNetX DynDNS worker with session-based authentication, dry-run validation, Docker-oriented runtime packaging, release automation, and multi-target support.
+
+The current project should be understood as a significantly reworked descendant rather than a direct untouched copy of that earlier upstream.

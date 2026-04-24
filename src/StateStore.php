@@ -1,5 +1,8 @@
 <?php
 
+/**
+ * Stores small bits of runtime state on disk, such as the last detected IPs.
+ */
 final class StateStore
 {
     private string $directory;
@@ -42,4 +45,3 @@ final class StateStore
         return $this->directory . DIRECTORY_SEPARATOR . $key;
     }
 }
-
