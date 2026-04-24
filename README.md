@@ -1,8 +1,6 @@
 # InterNetX DynDNS
 
-Current release: `0.3.0`
-
-`InterNetX DynDNS` is a containerized PHP worker that keeps one or more explicitly configured DNS hosts in sync with the current public IP address of the machine or network running the container.
+`InterNetX DynDNS` is a containerized PHP worker that keeps one explicitly configured DNS host in sync with the current public IP address of the machine or network running the container.
 
 The worker uses the InterNetX/AutoDNS XML gateway. The default live XML API endpoint remains `https://gateway.autodns.com`, which is current provider API terminology. Runtime API calls use the documented XML `auth_session` flow: create a session, reuse its hash for this run, then close it.
 
