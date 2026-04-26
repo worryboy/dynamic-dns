@@ -2,7 +2,12 @@
 
 `InterNetX DynDNS` is a containerized PHP worker that keeps one explicitly configured DNS host in sync with the current public IP address of the machine or network running the container.
 
-The worker uses the InterNetX/AutoDNS XML gateway. The default live XML API endpoint remains `https://gateway.autodns.com`, which is current provider API terminology. Runtime API calls use the documented XML `auth_session` flow: create a session, reuse its hash for this run, then close it.
+Current provider: InterNetX / AutoDNS / SchlundTech-related DNS.
+Current interface: InterNetX XML.
+
+The default live XML API endpoint remains `https://gateway.autodns.com`. Runtime API calls use the XML `auth_session` flow: create a session, reuse its hash for this run, then close it.
+
+The generic worker flow is separated from the DNS provider/interface implementation. Provider-specific details for the current InterNetX XML support are documented in [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md). Future providers, or a future InterNetX interface such as JSON, can be added behind the provider layer without rewriting the worker core.
 
 Source code is available on GitHub: [worryboy/internetx-dyndns](https://github.com/worryboy/internetx-dyndns)
 Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://hub.docker.com/r/worryboy/internetx-dyndns)
@@ -188,9 +193,10 @@ Before running live updates, check the zone for every configured target:
 | `HTTP_REQUEST_TIMEOUT` | optional runtime/debug | No | Total HTTP request timeout for IP and XML requests. | `20` |
 | `LOG_TARGET` | optional runtime/debug | No | PHP stream or file path for logs. | `php://stdout` |
 
-`INTERNETX_SYSTEM_NS` is not part of XML authentication and is not required for the normal update path. InterNetX documents `system_ns` on the Zone object as the first system-managed nameserver, and ZoneInfo examples may include it. If set, this worker sends it as `<system_ns>` in the read-only ZoneInfo request. Normal DynDNS users usually leave it unset.
+`INTERNETX_*` settings are provider-specific for the current InterNetX XML interface. `INTERNETX_SYSTEM_NS` is not part of XML authentication and is not required for the normal update path. InterNetX documents `system_ns` on the Zone object as the first system-managed nameserver, and ZoneInfo examples may include it. If set, this worker sends it as `<system_ns>` in the read-only ZoneInfo request. Normal DynDNS users usually leave it unset.
 
 There are no optional advanced authentication settings in the current worker. Credentials are used for `AuthSessionCreate` and `AuthSessionDelete`; zone inquiry and update requests use `<auth_session><hash>...</hash></auth_session>`.
+See [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md) for the provider-specific InterNetX XML configuration notes.
 
 ## Safe Local Validation
 
@@ -290,7 +296,7 @@ Example dry-run startup:
 [2026-04-23T08:00:02+00:00] INFO IPv6 detection disabled by configuration attempted=false
 [2026-04-23T08:00:02+00:00] SUCCESS Public IP detection completed with at least one usable address ipv4_detected=true ipv6_detected=false
 [2026-04-23T08:00:03+00:00] DEBUG Runtime stage entered stage=authentication/session preflight dry_run=true mutation_allowed=false live_mutation_attempted=false
-[2026-04-23T08:00:03+00:00] INFO Starting InterNetX authentication/session preflight auth_flow=auth_session session_create_task_code=1321001 mutation_allowed=false
+[2026-04-23T08:00:03+00:00] INFO Starting DNS provider authentication/session preflight provider=InterNetX provider_interface=XML auth_flow=auth_session mutation_allowed=false
 [2026-04-23T08:00:03+00:00] DEBUG InterNetX XML request prepared operation=AuthSessionCreate task_code=1321001 api_call_type=auth_session_create stage=authentication/session preflight mutation=false dry_run=true auth_mode=session_create session_established=false payload=<request>...</request>
 [2026-04-23T08:00:03+00:00] DEBUG InterNetX XML response received operation=AuthSessionCreate task_code=1321001 api_call_type=auth_session_create stage=authentication/session preflight mutation=false dry_run=true auth_mode=session_create session_established=false http_status=200 transport_success=true response_result_status_code=S1321001 response_result_status_type=success stid=20260423-app1 api_business_success=true payload=<response>...</response>
 [2026-04-23T08:00:03+00:00] SUCCESS InterNetX session created auth_mode=auth_session session_hash=9b4b...73dd session_persisted=false
@@ -324,6 +330,10 @@ The worker uses:
 The session hash is treated as a secret. It is kept only in memory, never persisted, and redacted in sanitized XML debug logs. Short masked display such as `9b4b...73dd` may appear in operational logs.
 
 The updater does not create missing DNS records. If IPv4 is enabled and detected, the target `A` record must already exist. If IPv6 is enabled and detected, the target `AAAA` record must already exist too.
+
+## Verification Direction
+
+The current primary check is provider-side ZoneInfo before update decisions. A future verification pass should stay staged and optional: provider check first, configurable public resolver checks second, and local resolver checks only as a convenience. See [docs/design/verification.md](docs/design/verification.md).
 
 ## Docker-Compatible Runtime
 
@@ -385,10 +395,14 @@ docker compose version
 - [`VERSION`](VERSION)
 - [`CHANGELOG.md`](CHANGELOG.md)
 - [`README.Docker.md`](README.Docker.md)
-- [`src/Config.php`](src/Config.php)
-- [`src/XmlGatewayClient.php`](src/XmlGatewayClient.php)
-- [`src/PublicIpResolver.php`](src/PublicIpResolver.php)
-- [`src/DynDnsService.php`](src/DynDnsService.php)
+- [`src/Core/DynDnsService.php`](src/Core/DynDnsService.php)
+- [`src/Core/PublicIpResolver.php`](src/Core/PublicIpResolver.php)
+- [`src/Config/Config.php`](src/Config/Config.php)
+- [`src/Provider/DnsProvider.php`](src/Provider/DnsProvider.php)
+- [`src/Provider/InterNetX/InterNetXXmlProvider.php`](src/Provider/InterNetX/InterNetXXmlProvider.php)
+- [`src/Provider/InterNetX/InterNetXXmlGatewayClient.php`](src/Provider/InterNetX/InterNetXXmlGatewayClient.php)
+- [`docs/providers/internetx-xml.md`](docs/providers/internetx-xml.md)
+- [`docs/design/verification.md`](docs/design/verification.md)
 - [`.env.example`](.env.example)
 - [`docker-compose.yml`](docker-compose.yml)
 - [`Dockerfile`](Dockerfile)

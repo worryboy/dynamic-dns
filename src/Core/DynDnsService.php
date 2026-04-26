@@ -18,7 +18,7 @@ final class DynDnsService
     private Logger $logger;
     private StateStore $stateStore;
     private PublicIpResolver $resolver;
-    private XmlGatewayClient $gateway;
+    private DnsProvider $provider;
     private PushoverNotifier $pushover;
     private string $currentStage = self::STAGE_STARTUP_CONFIG;
     private bool $liveMutationAttempted = false;
@@ -28,16 +28,16 @@ final class DynDnsService
         Logger $logger,
         StateStore $stateStore,
         PublicIpResolver $resolver,
-        XmlGatewayClient $gateway,
+        DnsProvider $provider,
         PushoverNotifier $pushover
     ) {
         $this->config = $config;
         $this->logger = $logger;
         $this->stateStore = $stateStore;
         $this->resolver = $resolver;
-        $this->gateway = $gateway;
+        $this->provider = $provider;
         $this->pushover = $pushover;
-        $this->gateway->setStage($this->currentStage);
+        $this->provider->setStage($this->currentStage);
     }
 
     public function runOnce(): int
@@ -67,12 +67,13 @@ final class DynDnsService
             $this->exitStage('public_ip_detection_complete');
 
             $this->enterStage(self::STAGE_AUTH_SESSION);
-            $this->logger->info('Starting InterNetX authentication/session preflight', array(
-                'auth_flow' => 'auth_session',
-                'session_create_task_code' => '1321001',
+            $this->logger->info('Starting DNS provider authentication/session preflight', array(
+                'provider' => $this->provider->providerName(),
+                'provider_interface' => $this->provider->interfaceName(),
+                'auth_flow' => $this->provider->authModel(),
                 'mutation_allowed' => $this->mutationAllowed() ? 'true' : 'false',
             ));
-            $this->gateway->createSession();
+            $this->provider->open();
             $this->exitStage('session_established');
 
             $this->enterStage(self::STAGE_TARGET_VALIDATION);
@@ -189,7 +190,7 @@ final class DynDnsService
                     'target_hosts' => $hostnames,
                     'mutation_allowed' => 'true',
                 ));
-                $this->gateway->updateZoneRecords($zoneInspection['document'], $domain, $changedTargets, $ipv4, $ipv6);
+                $this->provider->updateZoneRecords($zoneInspection['document'], $domain, $changedTargets, $ipv4, $ipv6);
             }
 
             if ($ipv4 !== null) {
@@ -237,11 +238,13 @@ final class DynDnsService
             'mutation_allowed' => $this->mutationAllowed() ? 'true' : 'false',
         ));
 
-        $this->logger->info('XML authentication configuration', array(
+        $this->logger->info('DNS provider configuration', array(
+            'provider' => $this->provider->providerName(),
+            'provider_interface' => $this->provider->interfaceName(),
             'api_host' => $this->config->host() !== '' ? 'present' : 'missing',
-            'auth_flow' => 'auth_session',
+            'auth_flow' => $this->provider->authModel(),
             'session_create_uses_credentials' => 'true',
-            'follow_up_auth' => 'auth_session',
+            'follow_up_auth' => $this->provider->authModel(),
             'username' => $this->config->user() !== '' ? 'present' : 'missing',
             'password' => $this->config->password() !== '' ? 'present' : 'missing',
             'context' => $this->config->context() !== '' ? 'present' : 'missing',
@@ -268,7 +271,7 @@ final class DynDnsService
             'configured' => $this->config->configuredOptionalSettings(),
         ));
 
-        $this->config->validateForGateway();
+        $this->config->validateProviderConfig();
         $this->logger->info('Configuration format validated', array(
             'dry_run_config_sufficient' => 'true',
         ));
@@ -285,7 +288,9 @@ final class DynDnsService
 
         $this->debug('Selected API host', array(
             'host' => $this->config->host(),
-            'auth_flow' => 'auth_session',
+            'provider' => $this->provider->providerName(),
+            'provider_interface' => $this->provider->interfaceName(),
+            'auth_flow' => $this->provider->authModel(),
         ));
     }
 
@@ -387,16 +392,18 @@ final class DynDnsService
                 $hostnames[] = $target->host();
             }
 
-            $this->logger->info('Validating read-only InterNetX zone access', array(
+            $this->logger->info('Validating read-only DNS provider zone access', array(
+                'provider' => $this->provider->providerName(),
+                'provider_interface' => $this->provider->interfaceName(),
                 'zone' => $domain,
                 'target_hosts' => $hostnames,
-                'auth_mode' => 'auth_session',
+                'auth_mode' => $this->provider->authModel(),
                 'require_a_record' => $requireIpv4 ? 'true' : 'false',
                 'require_aaaa_record' => $requireIpv6 ? 'true' : 'false',
                 'mutation' => 'false',
             ));
 
-            $inspection = $this->gateway->inspectTargets($domain, $targets, $requireIpv4, $requireIpv6);
+            $inspection = $this->provider->inspectTargets($domain, $targets, $requireIpv4, $requireIpv6);
             $zones[$domain] = array(
                 'document' => $inspection['zone_document'],
                 'targets' => $targets,
@@ -408,7 +415,9 @@ final class DynDnsService
                     'current_ipv4' => $record['ipv4'],
                     'current_ipv6' => $record['ipv6'],
                 );
-                $this->logger->info('Read-only InterNetX target validation successful', array(
+                $this->logger->info('Read-only DNS provider target validation successful', array(
+                    'provider' => $this->provider->providerName(),
+                    'provider_interface' => $this->provider->interfaceName(),
                     'target_host' => $target->host(),
                     'zone' => $target->zone(),
                     'subdomain' => $target->subdomain(),
@@ -630,7 +639,7 @@ final class DynDnsService
 
     private function cleanupSession(): void
     {
-        if (!$this->gateway->hasSession()) {
+        if (!$this->provider->hasOpenSession()) {
             return;
         }
 
@@ -638,7 +647,7 @@ final class DynDnsService
         $this->enterStage(self::STAGE_SESSION_CLEANUP);
 
         try {
-            $this->gateway->closeSession();
+            $this->provider->close();
             $this->exitStage('session_closed');
         } catch (Throwable $exception) {
             $context = array(
@@ -649,17 +658,17 @@ final class DynDnsService
                 'live_mutation_attempted' => $this->liveMutationAttempted ? 'true' : 'false',
             );
             $context = array_merge($context, $this->exceptionDiagnostics($exception));
-            $this->logger->warning('InterNetX session cleanup failed; main result preserved', $context);
+            $this->logger->warning('DNS provider session cleanup failed; main result preserved', $context);
         }
 
         $this->currentStage = $previousStage;
-        $this->gateway->setStage($previousStage);
+        $this->provider->setStage($previousStage);
     }
 
     private function enterStage(string $stage): void
     {
         $this->currentStage = $stage;
-        $this->gateway->setStage($stage);
+        $this->provider->setStage($stage);
         $this->debug('Runtime stage entered', array(
             'stage' => $stage,
             'dry_run' => $this->config->dryRun() ? 'true' : 'false',
@@ -691,7 +700,9 @@ final class DynDnsService
             'error' => $exception->getMessage(),
             'dry_run' => $this->config->dryRun() ? 'true' : 'false',
             'mutation_allowed' => $this->mutationAllowed() ? 'true' : 'false',
-            'session_established' => $this->gateway->hasSession() ? 'true' : 'false',
+            'session_established' => $this->provider->hasOpenSession() ? 'true' : 'false',
+            'provider' => $this->provider->providerName(),
+            'provider_interface' => $this->provider->interfaceName(),
             'live_mutation_attempted' => $this->liveMutationAttempted ? 'true' : 'false',
         );
         $context = array_merge($context, $this->exceptionDiagnostics($exception));
@@ -702,7 +713,7 @@ final class DynDnsService
         }
 
         if ($this->currentStage === self::STAGE_AUTH_SESSION) {
-            $this->logger->error('InterNetX authentication/session creation failed', $context);
+            $this->logger->error('DNS provider authentication/session creation failed', $context);
             return;
         }
 
@@ -742,7 +753,7 @@ final class DynDnsService
 
     private function exceptionDiagnostics(Throwable $exception): array
     {
-        if (!$exception instanceof InterNetXApiException) {
+        if (!$exception instanceof DnsProviderException) {
             return array();
         }
 

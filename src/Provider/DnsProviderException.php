@@ -1,9 +1,9 @@
 <?php
 
 /**
- * Wraps API failures with the sanitized diagnostics we want to surface in logs.
+ * Base exception for provider failures that can expose sanitized diagnostics.
  */
-final class InterNetXApiException extends RuntimeException
+class DnsProviderException extends RuntimeException
 {
     private array $diagnostics;
 

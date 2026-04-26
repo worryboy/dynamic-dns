@@ -328,7 +328,7 @@ final class Config
         return $this->checkInterval;
     }
 
-    public function validateForGateway(): void
+    public function validateProviderConfig(): void
     {
         $required = array(
             'INTERNETX_HOST' => $this->host,

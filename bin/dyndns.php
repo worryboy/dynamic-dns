@@ -37,7 +37,7 @@ $resolver = new PublicIpResolver(
     $config->connectTimeout(),
     $config->requestTimeout()
 );
-$gateway = new XmlGatewayClient($config, $logger);
+$provider = new InterNetXXmlProvider(new InterNetXXmlGatewayClient($config, $logger));
 $pushover = new PushoverNotifier(
     $logger,
     $config->pushoverAppKey(),
@@ -46,7 +46,7 @@ $pushover = new PushoverNotifier(
     $config->connectTimeout(),
     $config->requestTimeout()
 );
-$service = new DynDnsService($config, $logger, $stateStore, $resolver, $gateway, $pushover);
+$service = new DynDnsService($config, $logger, $stateStore, $resolver, $provider, $pushover);
 
 $exitCode = $service->runOnce();
 exit($exitCode);

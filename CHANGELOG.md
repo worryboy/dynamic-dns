@@ -1,7 +1,12 @@
 # Changelog
 
-## 0.4.0 - Traefik/CrowdSec Example
+## 0.4.0 - Provider Interface And Traefik/CrowdSec Example
 
+- Separated generic worker flow from DNS provider/interface code.
+- Made the current provider/interface explicit: InterNetX / AutoDNS / SchlundTech-related DNS via the InterNetX XML interface.
+- Added InterNetX XML as the first concrete provider implementation behind the provider contract.
+- Added provider documentation for InterNetX XML `auth_session` configuration and limits.
+- Added a lightweight verification design note for provider checks, optional public resolver checks, and optional local resolver checks.
 - Added a dedicated Traefik/CrowdSec DynDNS example for one-host / many-hostname deployments.
 - Added `.env.dns.example` and wired the example compose file to `.env.dns` to keep DNS settings separate from the Traefik/CrowdSec stack `.env`.
 - Documented how the example extends, but does not replace, the goNeuland Traefik/CrowdSec guide and migration note.
