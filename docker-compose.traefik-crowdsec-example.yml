@@ -2,6 +2,9 @@ services:
   internetx-dyndns:
     image: worryboy/internetx-dyndns:0.4.0
     container_name: internetx-dyndns
+    # For RUN_ONCE=true, validate with:
+    # docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm internetx-dyndns
+    # This restart policy is intended for continuous RUN_ONCE=false operation.
     restart: unless-stopped
     read_only: true
     cap_drop:

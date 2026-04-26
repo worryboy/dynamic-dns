@@ -187,6 +187,14 @@ docker run --rm \
   worryboy/internetx-dyndns:0.4.0
 ```
 
+For Compose validation with `RUN_ONCE=true`, use:
+
+```bash
+docker compose run --rm internetx-dyndns
+```
+
+Do not use `docker compose up -d` for `RUN_ONCE=true` validation with the default restart policy. The worker exits cleanly after one cycle, then Docker starts it again because `restart: unless-stopped` is intended for continuous mode.
+
 Run continuously:
 
 ```bash
@@ -205,6 +213,7 @@ docker run -d \
 Start with the Docker-Hub-oriented Compose file:
 
 ```bash
+# set RUN_ONCE=false in .env first
 docker compose -f docker-compose.hub.yml up -d
 ```
 
@@ -230,6 +239,7 @@ In dry-run mode, the worker may:
 - log what would happen
 
 It never sends a live DNS mutation while `DRY_RUN=true`.
+With `RUN_ONCE=true`, prefer `docker compose run --rm internetx-dyndns`.
 
 For normal long-running updates, switch to:
 
