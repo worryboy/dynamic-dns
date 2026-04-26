@@ -67,10 +67,11 @@ Optional Pushover notifications:
 ```env
 PUSHOVER_APP_KEY=your-pushover-app-token
 PUSHOVER_USER_KEY=your-pushover-user-key
-PUSHOVER_LOCATION_NAME=Home-Server
+PUSHOVER_LOCATION_PREFIX=Home-Server
 ```
 
 All three values are required to enable notifications. If any of them are missing, Pushover remains disabled.
+`PUSHOVER_LOCATION_PREFIX` is placed at the beginning of the notification message. The legacy `PUSHOVER_LOCATION_NAME` variable is accepted temporarily as a deprecated fallback, but `PUSHOVER_LOCATION_PREFIX` wins if both are set.
 
 Example:
 
@@ -232,7 +233,7 @@ Pushover support is optional and enabled only when all three values are configur
 ```env
 PUSHOVER_APP_KEY=your-pushover-app-token
 PUSHOVER_USER_KEY=your-pushover-user-key
-PUSHOVER_LOCATION_NAME=Home-Server
+PUSHOVER_LOCATION_PREFIX=Home-Server
 ```
 
 Behavior:
@@ -255,6 +256,7 @@ Home-Server IPv6 Address: 2001:db8::1234
 ```
 
 If only one IP family changed, only that line is included.
+The configured `PUSHOVER_LOCATION_PREFIX`, for example `Berlin`, always appears at the beginning of each notification line.
 
 ## Runtime Modes
 

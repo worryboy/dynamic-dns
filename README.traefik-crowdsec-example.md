@@ -68,13 +68,13 @@ DEBUG=false
 
 PUSHOVER_APP_KEY=your-pushover-app-token
 PUSHOVER_USER_KEY=your-pushover-user-key
-PUSHOVER_LOCATION_NAME=Berlin
+PUSHOVER_LOCATION_PREFIX=Berlin
 ```
 
 Notes:
 
 - `TARGET_HOSTS` lists several DNS names that should all point to the same host IP.
-- `PUSHOVER_LOCATION_NAME=Berlin` is used at the beginning of the notification message.
+- `PUSHOVER_LOCATION_PREFIX=Berlin` is used at the beginning of the notification message.
 - Do not commit `.env`.
 
 ## Run The Example

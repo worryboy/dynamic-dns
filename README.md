@@ -64,10 +64,11 @@ Optional Pushover notifications:
 ```env
 PUSHOVER_APP_KEY=your-pushover-app-token
 PUSHOVER_USER_KEY=your-pushover-user-key
-PUSHOVER_LOCATION_NAME=Home-Server
+PUSHOVER_LOCATION_PREFIX=Home-Server
 ```
 
 All three values are required to enable notifications. If any of them are missing, Pushover stays disabled.
+`PUSHOVER_LOCATION_PREFIX` is placed at the beginning of the notification message. The legacy `PUSHOVER_LOCATION_NAME` variable is accepted temporarily as a deprecated fallback, but `PUSHOVER_LOCATION_PREFIX` wins if both are set.
 
 Example:
 
@@ -174,9 +175,9 @@ Before running live updates, check the zone for every configured target:
 | `PUBLIC_IPV6_PROVIDERS` | core runtime | Yes | Comma-separated public IPv6 detection endpoints. Used only when `ENABLE_IPV6=true`. | `https://api64.ipify.org` |
 | `DRY_RUN` | optional runtime/debug | No | Validates config, may run read-only zone preflight, detects public IP, compares state, and logs what would happen without performing a live DNS update. | `true` |
 | `FORCE_UPDATE_ON_NO_CHANGE` | optional runtime/debug | No | When `false` (default), skip unnecessary live update requests if the detected public IP is unchanged and all targets are already in sync. When `true`, still allow live update requests in that no-change case. | `false` |
-| `PUSHOVER_APP_KEY` | optional notifications | No | Pushover application API token. Required together with `PUSHOVER_USER_KEY` and `PUSHOVER_LOCATION_NAME` to enable notifications. | `abc123...` |
-| `PUSHOVER_USER_KEY` | optional notifications | No | Pushover user or group key. Required together with `PUSHOVER_APP_KEY` and `PUSHOVER_LOCATION_NAME` to enable notifications. | `uQiR...` |
-| `PUSHOVER_LOCATION_NAME` | optional notifications | No | Short location label placed at the beginning of the notification message. | `Home-Server` |
+| `PUSHOVER_APP_KEY` | optional notifications | No | Pushover application API token. Required together with `PUSHOVER_USER_KEY` and `PUSHOVER_LOCATION_PREFIX` to enable notifications. | `abc123...` |
+| `PUSHOVER_USER_KEY` | optional notifications | No | Pushover user or group key. Required together with `PUSHOVER_APP_KEY` and `PUSHOVER_LOCATION_PREFIX` to enable notifications. | `uQiR...` |
+| `PUSHOVER_LOCATION_PREFIX` | optional notifications | No | Short prefix placed at the beginning of the notification message. Legacy `PUSHOVER_LOCATION_NAME` is accepted temporarily as a deprecated fallback. | `Home-Server` |
 | `RUN_ONCE` | optional runtime/debug | No | Executes one check cycle and exits instead of looping. | `true` |
 | `DEBUG` | optional runtime/debug | No | Prints detailed diagnostics without exposing secrets, including sanitized XML request/response payloads for provider calls. | `true` |
 | `TARGET_ZONE` | optional runtime/debug | No | Overrides zone inference from `TARGET_HOST` in single-target mode only. | `example.co.uk` |
@@ -215,7 +216,7 @@ DEBUG=true
 - `RUN_ONCE=true` executes a single check cycle and exits instead of looping continuously.
 - `DEBUG=true` prints detailed diagnostic logging without exposing passwords, session hashes, or sensitive credentials. Provider request/response payloads are sanitized and labeled as `auth_session_create`, `read_only_preflight`, `live_mutation`, or `session_cleanup`.
 - With `DEBUG=true`, the worker logs each runtime stage as it moves through config validation, public IP detection, authentication/session preflight, target validation, update decision, live mutation, and session cleanup.
-- If `PUSHOVER_APP_KEY`, `PUSHOVER_USER_KEY`, and `PUSHOVER_LOCATION_NAME` are all configured, the worker can send a Pushover notification when a real public IP change is detected.
+- If `PUSHOVER_APP_KEY`, `PUSHOVER_USER_KEY`, and `PUSHOVER_LOCATION_PREFIX` are all configured, the worker can send a Pushover notification when a real public IP change is detected.
 
 Public IP detection runs before any InterNetX authentication request, so local network/IP behavior is visible even if API login fails later. IPv4 and IPv6 results are logged explicitly:
 
@@ -242,7 +243,7 @@ Pushover support is optional. It is enabled only when all three variables are co
 ```env
 PUSHOVER_APP_KEY=your-pushover-app-token
 PUSHOVER_USER_KEY=your-pushover-user-key
-PUSHOVER_LOCATION_NAME=Home-Server
+PUSHOVER_LOCATION_PREFIX=Home-Server
 ```
 
 Notification behavior:
@@ -264,7 +265,7 @@ Home-Server IPv4 Address: 1.2.3.4
 Home-Server IPv6 Address: 2001:db8::1234
 ```
 
-If only one family changed, only that line is sent. The configured location name always appears at the beginning of the message text.
+If only one family changed, only that line is sent. The configured location prefix always appears at the beginning of the message text. For example, `PUSHOVER_LOCATION_PREFIX=Berlin` produces a line starting with `Berlin`.
 
 ## Runtime Modes
 

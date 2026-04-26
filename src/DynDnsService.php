@@ -256,10 +256,13 @@ final class DynDnsService
 
         $this->logger->info('Pushover notification configuration', array(
             'pushover_enabled' => $this->pushover->enabled() ? 'true' : 'false',
-            'location_name' => $this->pushover->enabled() ? $this->pushover->locationName() : 'not_set',
+            'location_prefix' => $this->pushover->enabled() ? $this->pushover->locationPrefix() : 'not_set',
             'app_key' => $this->config->pushoverAppKey() !== '' ? 'present' : 'missing',
             'user_key' => $this->config->pushoverUserKey() !== '' ? 'present' : 'missing',
         ));
+        if ($this->config->deprecatedPushoverLocationPrefixFallbackUsed()) {
+            $this->logger->warning('PUSHOVER_LOCATION_NAME is deprecated; use PUSHOVER_LOCATION_PREFIX instead');
+        }
 
         $this->logger->info('Optional runtime settings', array(
             'configured' => $this->config->configuredOptionalSettings(),
