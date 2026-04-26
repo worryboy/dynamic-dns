@@ -11,7 +11,7 @@ final class PushoverNotifier
     private Logger $logger;
     private string $appKey;
     private string $userKey;
-    private string $locationName;
+    private string $locationPrefix;
     private int $connectTimeout;
     private int $requestTimeout;
 
@@ -19,26 +19,26 @@ final class PushoverNotifier
         Logger $logger,
         string $appKey,
         string $userKey,
-        string $locationName,
+        string $locationPrefix,
         int $connectTimeout,
         int $requestTimeout
     ) {
         $this->logger = $logger;
         $this->appKey = $appKey;
         $this->userKey = $userKey;
-        $this->locationName = $locationName;
+        $this->locationPrefix = $locationPrefix;
         $this->connectTimeout = $connectTimeout;
         $this->requestTimeout = $requestTimeout;
     }
 
     public function enabled(): bool
     {
-        return $this->appKey !== '' && $this->userKey !== '' && $this->locationName !== '';
+        return $this->appKey !== '' && $this->userKey !== '' && $this->locationPrefix !== '';
     }
 
-    public function locationName(): string
+    public function locationPrefix(): string
     {
-        return $this->locationName;
+        return $this->locationPrefix;
     }
 
     public function notifyIpChange(?string $ipv4, ?string $ipv6, bool $ipv4Changed, bool $ipv6Changed): void
@@ -52,10 +52,10 @@ final class PushoverNotifier
 
         $lines = array();
         if ($ipv4Changed && $ipv4 !== null) {
-            $lines[] = sprintf('%s IPv4 Address: %s', $this->locationName, $ipv4);
+            $lines[] = sprintf('%s IPv4 Address: %s', $this->locationPrefix, $ipv4);
         }
         if ($ipv6Changed && $ipv6 !== null) {
-            $lines[] = sprintf('%s IPv6 Address: %s', $this->locationName, $ipv6);
+            $lines[] = sprintf('%s IPv6 Address: %s', $this->locationPrefix, $ipv6);
         }
 
         if (empty($lines)) {
@@ -103,7 +103,7 @@ final class PushoverNotifier
 
         $this->logger->success('Pushover notification sent successfully', array(
             'pushover_enabled' => 'true',
-            'location_name' => $this->locationName,
+            'location_prefix' => $this->locationPrefix,
             'ipv4_changed' => $ipv4Changed ? 'true' : 'false',
             'ipv6_changed' => $ipv6Changed ? 'true' : 'false',
         ));

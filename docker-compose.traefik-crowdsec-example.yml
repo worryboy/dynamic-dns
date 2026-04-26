@@ -1,6 +1,6 @@
 services:
   internetx-dyndns:
-    image: worryboy/internetx-dyndns:0.3.0
+    image: worryboy/internetx-dyndns:0.4.0
     container_name: internetx-dyndns
     restart: unless-stopped
     read_only: true
@@ -9,14 +9,14 @@ services:
     security_opt:
       - no-new-privileges:true
     env_file:
-      - .env
+      - .env.dns
     tmpfs:
       - /tmp
     volumes:
       - ./state:/app/state
 
   traefik:
-    image: traefik:v3.1
+    image: traefik:v3.6
     container_name: traefik
     restart: unless-stopped
     depends_on:

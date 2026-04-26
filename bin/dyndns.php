@@ -42,7 +42,7 @@ $pushover = new PushoverNotifier(
     $logger,
     $config->pushoverAppKey(),
     $config->pushoverUserKey(),
-    $config->pushoverLocationName(),
+    $config->pushoverLocationPrefix(),
     $config->connectTimeout(),
     $config->requestTimeout()
 );

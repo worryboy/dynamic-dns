@@ -13,7 +13,8 @@ final class Config
     private string $systemNs;
     private string $pushoverAppKey;
     private string $pushoverUserKey;
-    private string $pushoverLocationName;
+    private string $pushoverLocationPrefix;
+    private bool $deprecatedPushoverLocationPrefixFallbackUsed;
     private array $targets;
     private array $domains;
     private array $ipv4Providers;
@@ -41,7 +42,8 @@ final class Config
         $this->systemNs = $data['system_ns'];
         $this->pushoverAppKey = $data['pushover_app_key'];
         $this->pushoverUserKey = $data['pushover_user_key'];
-        $this->pushoverLocationName = $data['pushover_location_name'];
+        $this->pushoverLocationPrefix = $data['pushover_location_prefix'];
+        $this->deprecatedPushoverLocationPrefixFallbackUsed = $data['deprecated_pushover_location_prefix_fallback_used'];
         $this->targets = $data['targets'];
         $this->domains = $data['domains'];
         $this->ipv4Providers = $data['ipv4_providers'];
@@ -88,6 +90,13 @@ final class Config
             );
         }
 
+        $pushoverLocationPrefix = (string) self::env('PUSHOVER_LOCATION_PREFIX', '');
+        $legacyPushoverLocationPrefix = (string) self::env('PUSHOVER_LOCATION_NAME', '');
+        $deprecatedPushoverLocationPrefixFallbackUsed = $pushoverLocationPrefix === '' && $legacyPushoverLocationPrefix !== '';
+        if ($deprecatedPushoverLocationPrefixFallbackUsed) {
+            $pushoverLocationPrefix = $legacyPushoverLocationPrefix;
+        }
+
         return new self(array(
             'host' => self::env('INTERNETX_HOST', 'https://gateway.autodns.com'),
             'user' => self::env('INTERNETX_USER', ''),
@@ -96,7 +105,8 @@ final class Config
             'system_ns' => (string) self::env('INTERNETX_SYSTEM_NS', ''),
             'pushover_app_key' => (string) self::env('PUSHOVER_APP_KEY', ''),
             'pushover_user_key' => (string) self::env('PUSHOVER_USER_KEY', ''),
-            'pushover_location_name' => (string) self::env('PUSHOVER_LOCATION_NAME', ''),
+            'pushover_location_prefix' => $pushoverLocationPrefix,
+            'deprecated_pushover_location_prefix_fallback_used' => $deprecatedPushoverLocationPrefixFallbackUsed,
             'targets' => $targets,
             'domains' => self::groupTargetsByZone($targets),
             'ipv4_providers' => $ipv4Providers,
@@ -152,9 +162,14 @@ final class Config
         return $this->pushoverUserKey;
     }
 
-    public function pushoverLocationName(): string
+    public function pushoverLocationPrefix(): string
     {
-        return $this->pushoverLocationName;
+        return $this->pushoverLocationPrefix;
+    }
+
+    public function deprecatedPushoverLocationPrefixFallbackUsed(): bool
+    {
+        return $this->deprecatedPushoverLocationPrefixFallbackUsed;
     }
 
     public function xmlGetZone(): string
@@ -234,6 +249,7 @@ final class Config
             'TARGET_HOST_ZONES',
             'PUSHOVER_APP_KEY',
             'PUSHOVER_USER_KEY',
+            'PUSHOVER_LOCATION_PREFIX',
             'PUSHOVER_LOCATION_NAME',
             'DRY_RUN',
             'FORCE_UPDATE_ON_NO_CHANGE',
