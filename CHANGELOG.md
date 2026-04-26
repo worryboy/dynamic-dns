@@ -11,6 +11,8 @@
 - Added `.env.dns.example` and wired the example compose file to `.env.dns` to keep DNS settings separate from the Traefik/CrowdSec stack `.env`.
 - Documented how the example extends, but does not replace, the goNeuland Traefik/CrowdSec guide and migration note.
 - Updated example documentation for outbound-only DynDNS operation, Compose startup ordering, DNS propagation limits, and `PUSHOVER_LOCATION_PREFIX=Berlin`.
+- Clarified `RUN_ONCE=true` usage with Docker Compose and added a startup warning for restart-policy loops.
+- Improved Dockerfile package/install hygiene and kept the expensive PHP extension build layer cacheable.
 - Updated release references to `0.4.0`.
 
 ## 0.3.0 - Multi-Target And Notifications

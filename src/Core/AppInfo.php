@@ -4,7 +4,7 @@ final class AppInfo
 {
     public static function version(): string
     {
-        $path = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'VERSION';
+        $path = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'VERSION';
         if (!is_file($path)) {
             return '0.0.0-dev';
         }

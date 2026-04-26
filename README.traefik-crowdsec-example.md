@@ -93,9 +93,12 @@ Validate the DNS worker first:
 docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm internetx-dyndns
 ```
 
+This is the preferred command while `RUN_ONCE=true`. Do not use `up -d` for one-shot validation, because the example compose file uses `restart: unless-stopped` for the later continuous mode.
+
 Start the stack:
 
 ```bash
+# set RUN_ONCE=false in .env.dns first
 docker compose -f docker-compose.traefik-crowdsec-example.yml up -d
 ```
 

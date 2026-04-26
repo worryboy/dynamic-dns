@@ -209,6 +209,8 @@ docker compose build
 docker compose run --rm internetx-dyndns
 ```
 
+Use `docker compose run --rm internetx-dyndns` when `RUN_ONCE=true`. Do not use `docker compose up -d` for one-shot validation with the default restart policy, because Docker will restart the cleanly exited container and it can look like a failure loop.
+
 The recommended validation flags are:
 
 ```env
@@ -219,7 +221,7 @@ DEBUG=true
 
 - `DRY_RUN=true` validates config, detects the public IP, creates and closes an InterNetX AuthSession, may run read-only InterNetX zone validation, compares state, and logs what would happen without sending a live DNS update.
 - `FORCE_UPDATE_ON_NO_CHANGE=false` is the default and avoids unnecessary live update requests when the detected public IP is unchanged and every target already matches that IP.
-- `RUN_ONCE=true` executes a single check cycle and exits instead of looping continuously.
+- `RUN_ONCE=true` executes a single check cycle and exits instead of looping continuously. It is meant for `docker compose run --rm internetx-dyndns`.
 - `DEBUG=true` prints detailed diagnostic logging without exposing passwords, session hashes, or sensitive credentials. Provider request/response payloads are sanitized and labeled as `auth_session_create`, `read_only_preflight`, `live_mutation`, or `session_cleanup`.
 - With `DEBUG=true`, the worker logs each runtime stage as it moves through config validation, public IP detection, authentication/session preflight, target validation, update decision, live mutation, and session cleanup.
 - If `PUSHOVER_APP_KEY`, `PUSHOVER_USER_KEY`, and `PUSHOVER_LOCATION_PREFIX` are all configured, the worker can send a Pushover notification when a real public IP change is detected.
@@ -341,11 +343,13 @@ Build and run continuously:
 
 ```bash
 cp .env.example .env
-# edit .env
+# edit .env and set RUN_ONCE=false
 docker compose build
 docker compose up -d
 docker compose logs -f
 ```
+
+Use `docker compose up -d` for continuous mode with `RUN_ONCE=false`. The compose file has `restart: unless-stopped`, so `RUN_ONCE=true` will exit successfully and then be started again by Docker.
 
 Run one safe validation cycle:
 
