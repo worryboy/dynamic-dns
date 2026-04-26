@@ -44,6 +44,15 @@ Create a local `.env` file before starting the container. You can copy `.env.exa
 cp .env.example .env
 ```
 
+## Env Example Files
+
+| File | Purpose |
+| --- | --- |
+| `.env.example` | Default example config for the normal DynDNS worker. |
+| `.env.dns.example` | DNS-only example config for the Traefik/CrowdSec integration example. |
+
+The separate DNS env file avoids collisions with an existing Traefik/CrowdSec stack `.env`, such as reverse-proxy, CrowdSec, certificate, or dashboard settings.
+
 Fill in these values manually:
 
 ```env

@@ -29,9 +29,12 @@ The DynDNS container remains outbound-only. It has no published ports, no Traefi
 
 ## Why A Separate DNS Env File
 
-Traefik/CrowdSec stacks commonly already have their own `.env` for reverse-proxy paths, dashboard hosts, bouncer keys, certificate settings, AppSec flags, and related variables. Keeping DynDNS settings in `.env.dns` avoids name collisions and makes it obvious which secrets belong to InterNetX DNS automation.
+| File | Purpose |
+| --- | --- |
+| `.env.example` | Default example config for the normal DynDNS worker. |
+| `.env.dns.example` | DNS-only example config for this Traefik/CrowdSec integration example. |
 
-Use `.env.example` for the normal standalone DynDNS worker. Use `.env.dns.example` only for this Traefik/CrowdSec integration pattern.
+Traefik/CrowdSec stacks commonly already have their own `.env` for reverse-proxy, CrowdSec, certificate, and dashboard settings. Keeping DynDNS settings in `.env.dns` avoids collisions and makes the DNS secrets easier to spot.
 
 ## Prepare `.env.dns`
 
