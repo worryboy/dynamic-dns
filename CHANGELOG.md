@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 - Traefik/CrowdSec Example
+
+- Added a dedicated Traefik/CrowdSec DynDNS example for one-host / many-hostname deployments.
+- Added `.env.dns.example` and wired the example compose file to `.env.dns` to keep DNS settings separate from the Traefik/CrowdSec stack `.env`.
+- Documented how the example extends, but does not replace, the goNeuland Traefik/CrowdSec guide and migration note.
+- Updated example documentation for outbound-only DynDNS operation, Compose startup ordering, DNS propagation limits, and `PUSHOVER_LOCATION_PREFIX=Berlin`.
+- Updated release references to `0.4.0`.
+
 ## 0.3.0 - Multi-Target And Notifications
 
 - Multi-target DynDNS updates for one-host / many-hostname setups, with one session and one public IP detection pass per cycle.

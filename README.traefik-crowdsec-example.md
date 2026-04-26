@@ -1,54 +1,47 @@
-# Traefik + CrowdSec Example
+# Traefik + CrowdSec DynDNS Example
 
-This is a special example deployment pattern, not the default way to run `internetx-dyndns`.
+This is a special `internetx-dyndns` deployment pattern for one-host / many-hostname reverse-proxy setups. It is an extension for DNS automation, not a replacement for a full Traefik/CrowdSec setup guide.
 
-It is useful when one public host runs several services behind Traefik and several DNS names should always point to that same host IP. In that setup, the DynDNS worker keeps the DNS side aligned so Traefik can serve the expected hostnames and certificate flows can start from a sensible DNS baseline.
+Use the goNeuland Traefik/CrowdSec guide as the baseline for Traefik, CrowdSec, middleware, dashboard, certificate, and AppSec configuration:
 
-Source code is available on GitHub: [worryboy/internetx-dyndns](https://github.com/worryboy/internetx-dyndns)
-Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://hub.docker.com/r/worryboy/internetx-dyndns)
+- Main guide: [Traefik ab v3.6 mit CrowdSec installieren und konfigurieren](https://goneuland.de/traefik-ab-v3-6-mit-crowdsec-installieren-und-konfigurieren/)
+- Migration/update note: [Migration 001: Traefik ab v3.6 mit CrowdSec installieren und konfigurieren](https://goneuland.de/migration-001-traefik-ab-v3-6-mit-crowdsec-installieren-und-konfigurieren/)
 
-## What This Example Includes
+This repository adds the DNS side: `internetx-dyndns` keeps several public DNS names aligned with the current public IP before those names are expected to work through Traefik.
 
-- `internetx-dyndns`
-- `traefik`
-- `crowdsec`
+## What This Adds
 
-It does not include an extra demo app such as `whoami`. The goal is to show the operational pattern, not to build a full demo stack.
+- an `internetx-dyndns` helper service
+- a dedicated DNS env file, `.env.dns`
+- multi-target DNS updates through `TARGET_HOSTS`
+- optional Pushover notification prefix `PUSHOVER_LOCATION_PREFIX=Berlin`
+- startup ordering that starts the DNS worker before Traefik and CrowdSec
 
-## Why DynDNS Helps Here
+The DynDNS container remains outbound-only. It has no published ports, no Traefik routing labels, and no inbound listener.
 
-In a one-host / many-hostname reverse proxy setup, several public DNS names may need to follow the same host IP:
+## Differences From The Referenced Traefik/CrowdSec Guide
 
-```env
-TARGET_HOSTS=app1.example.com,app2.example.com
-```
+- The goNeuland guide owns the Traefik/CrowdSec stack design; this example only adds a DynDNS helper service.
+- DNS credentials and target names live in `.env.dns`, not in the Traefik/CrowdSec `.env`.
+- `internetx-dyndns` is not exposed through Traefik and does not join HTTP routing.
+- Multiple DNS names can point to the same host IP with `TARGET_HOSTS`.
+- Pushover can report real public IP changes if `PUSHOVER_APP_KEY`, `PUSHOVER_USER_KEY`, and `PUSHOVER_LOCATION_PREFIX` are configured.
 
-That lets one host front multiple names through Traefik while CrowdSec protects the edge.
+## Why A Separate DNS Env File
 
-## Important Boundaries
+Traefik/CrowdSec stacks commonly already have their own `.env` for reverse-proxy paths, dashboard hosts, bouncer keys, certificate settings, AppSec flags, and related variables. Keeping DynDNS settings in `.env.dns` avoids name collisions and makes it obvious which secrets belong to InterNetX DNS automation.
 
-- `internetx-dyndns` stays outbound-only.
-- It is not exposed through Traefik.
-- It has no Traefik routing labels.
-- It opens no inbound listener.
+Use `.env.example` for the normal standalone DynDNS worker. Use `.env.dns.example` only for this Traefik/CrowdSec integration pattern.
 
-The DynDNS worker updates DNS. Traefik handles HTTP/TLS ingress. CrowdSec handles security decisions. They are related operationally, but the DynDNS worker itself is not a routed web service.
+## Prepare `.env.dns`
 
-## Startup Order
-
-The example Compose file starts `internetx-dyndns` before Traefik and CrowdSec by using `depends_on` on those services.
-
-That reflects the intended operational order, but it is only container startup ordering. It does **not** guarantee external DNS propagation. DNS propagation remains external to Docker Compose and may still take time after the DynDNS worker starts.
-
-## Prepare `.env`
-
-Copy the project template and fill in your real values:
+Create the DNS-specific env file:
 
 ```bash
-cp .env.example .env
+cp .env.dns.example .env.dns
 ```
 
-For this example, a typical `.env` shape is:
+Then edit `.env.dns`:
 
 ```env
 INTERNETX_HOST=https://gateway.autodns.com
@@ -56,35 +49,45 @@ INTERNETX_USER=your-api-user
 INTERNETX_PASSWORD=your-api-password
 INTERNETX_CONTEXT=9
 
-TARGET_HOSTS=app1.example.com,app2.example.com
+TARGET_HOSTS=app1.example.com,app2.example.com,traefik.example.com
 
 ENABLE_IPV4=true
 ENABLE_IPV6=false
 
-DRY_RUN=false
+DRY_RUN=true
 FORCE_UPDATE_ON_NO_CHANGE=false
-RUN_ONCE=false
-DEBUG=false
+RUN_ONCE=true
+DEBUG=true
 
 PUSHOVER_APP_KEY=your-pushover-app-token
 PUSHOVER_USER_KEY=your-pushover-user-key
 PUSHOVER_LOCATION_PREFIX=Berlin
 ```
 
-Notes:
+Start with `DRY_RUN=true` and `RUN_ONCE=true`. After validation, switch to:
 
-- `TARGET_HOSTS` lists several DNS names that should all point to the same host IP.
-- `PUSHOVER_LOCATION_PREFIX=Berlin` is used at the beginning of the notification message.
-- Do not commit `.env`.
+```env
+DRY_RUN=false
+RUN_ONCE=false
+DEBUG=false
+```
+
+`TARGET_HOSTS` should list the public hostnames Traefik will serve from the same machine. If a hostname has an ambiguous public suffix such as `example.co.uk`, add `TARGET_HOST_ZONES=host=zone,host=zone`.
 
 ## Run The Example
 
-Create the required local directories:
+Create local state and Traefik/CrowdSec directories if you are using this example compose file directly:
 
 ```bash
 mkdir -p state letsencrypt crowdsec/config crowdsec/data
 touch letsencrypt/acme.json
 chmod 600 letsencrypt/acme.json
+```
+
+Validate the DNS worker first:
+
+```bash
+docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm internetx-dyndns
 ```
 
 Start the stack:
@@ -93,20 +96,29 @@ Start the stack:
 docker compose -f docker-compose.traefik-crowdsec-example.yml up -d
 ```
 
-Follow the logs:
+Follow logs:
 
 ```bash
 docker compose -f docker-compose.traefik-crowdsec-example.yml logs -f
 ```
 
-## How This Differs From Standard Docker Deployment
+## Operational Ordering
 
-Standard Docker usage is documented in [README.Docker.md](/Users/worker/DEV/internetx-dyndns/README.Docker.md) and focuses only on the DynDNS worker.
+The compose file declares Traefik and CrowdSec after `internetx-dyndns` with `depends_on`. This expresses the intended order: DNS should be checked before Traefik-dependent hostnames and certificate flows are expected to work.
 
-This example adds:
+Docker Compose startup order is not DNS propagation. It does not guarantee that public resolvers, browser clients, or certificate authorities can already see the new records. DNS propagation remains external to Compose and depends on authoritative DNS behavior, resolver caching, and record TTLs.
 
-- Traefik for hostname-based routing and TLS
-- CrowdSec as a colocated edge-security component
-- a multi-target DynDNS pattern where several DNS names are expected to resolve to the same host
+## Why DynDNS Is Not Routed Through Traefik
 
-Use this example only if that is actually your deployment shape.
+`internetx-dyndns` is a CLI worker. It talks outbound to public IP providers and the InterNetX/AutoDNS XML API. It does not serve HTTP traffic, so exposing it through Traefik would add attack surface without adding functionality.
+
+Keep it as an internal helper service:
+
+- no `ports:` mapping
+- no `traefik.enable=true`
+- no Traefik router labels
+- persistent state mounted only at `/app/state`
+
+## Compose File Scope
+
+`docker-compose.traefik-crowdsec-example.yml` is intentionally small. It shows where the DynDNS worker fits and keeps the Traefik/CrowdSec details minimal. For a production Traefik/CrowdSec stack, follow the referenced guide and migration note, then add the `internetx-dyndns` service and `.env.dns` pattern from this repository.

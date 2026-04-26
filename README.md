@@ -354,7 +354,7 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine3.22`
 - app image: `internetx-dyndns:local`
-- release image: `worryboy/internetx-dyndns:0.3.0`
+- release image: `worryboy/internetx-dyndns:0.4.0`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`

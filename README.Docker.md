@@ -4,7 +4,7 @@ Containerized InterNetX DynDNS worker for IPv4/IPv6-aware DNS updates.
 
 This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the InterNetX/AutoDNS XML API when the address changes.
 
-Current release: `0.3.0`
+Current release: `0.4.0`
 
 Source code is available on GitHub: [worryboy/internetx-dyndns](https://github.com/worryboy/internetx-dyndns)
 Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://hub.docker.com/r/worryboy/internetx-dyndns)
@@ -31,7 +31,7 @@ No inbound ports are required. The worker does not listen on any port, and no `p
 
 ## Image Tags
 
-- `worryboy/internetx-dyndns:0.3.0` - versioned release
+- `worryboy/internetx-dyndns:0.4.0` - versioned release
 - `worryboy/internetx-dyndns:latest` - latest published stable image
 
 Use a versioned tag for repeatable deployments. Use `latest` if you want the newest published stable image.
@@ -168,7 +168,7 @@ docker run --rm \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.3.0
+  worryboy/internetx-dyndns:0.4.0
 ```
 
 Run continuously:
@@ -183,7 +183,7 @@ docker run -d \
   --env-file .env \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.3.0
+  worryboy/internetx-dyndns:0.4.0
 ```
 
 Start with the Docker-Hub-oriented Compose file:
@@ -192,7 +192,7 @@ Start with the Docker-Hub-oriented Compose file:
 docker compose -f docker-compose.hub.yml up -d
 ```
 
-For a special one-host / many-hostname reverse-proxy scenario with Traefik and CrowdSec, see [README.traefik-crowdsec-example.md](/Users/worker/DEV/internetx-dyndns/README.traefik-crowdsec-example.md). That example is intentionally separate from the standard deployment model.
+For a special one-host / many-hostname reverse-proxy scenario with Traefik and CrowdSec, see [README.traefik-crowdsec-example.md](README.traefik-crowdsec-example.md). That example is intentionally separate from the standard deployment model and uses `.env.dns` so it does not collide with an existing Traefik/CrowdSec stack `.env`.
 
 ## Dry-Run Support
 
@@ -288,6 +288,15 @@ An unchanged detected public IP does not automatically mean nothing needs to hap
 - Some vulnerability scanner findings may still be inherited from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine runtime packages. Those are usually resolved by rebuilding on newer upstream base releases when fixes land there.
 
 ## Release Notes
+
+### 0.4.0
+
+Example and documentation release:
+
+- dedicated Traefik/CrowdSec DynDNS example
+- DNS-specific `.env.dns` separation for the example
+- reference alignment with the goNeuland Traefik/CrowdSec guide
+- `PUSHOVER_LOCATION_PREFIX` examples for IP change notifications
 
 ### 0.3.0
 
