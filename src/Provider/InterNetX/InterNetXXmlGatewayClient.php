@@ -1,10 +1,10 @@
 <?php
 
 /**
- * Handles InterNetX XML requests and keeps request/response handling in one place.
- * It owns the session lifecycle, but leaves update decisions to the service layer.
+ * Low-level InterNetX XML gateway client.
+ * It owns auth_session XML requests and zone document mutation details.
  */
-final class XmlGatewayClient
+final class InterNetXXmlGatewayClient
 {
     private const TASK_AUTH_SESSION_CREATE = '1321001';
     private const TASK_AUTH_SESSION_DELETE = '1321003';
@@ -34,7 +34,7 @@ final class XmlGatewayClient
 
     public function createSession(): void
     {
-        $this->config->validateForGateway();
+        $this->config->validateProviderConfig();
         $this->debug('Preparing InterNetX AuthSessionCreate request', array(
             'stage' => $this->stage,
             'auth_mode' => 'session_create',
@@ -119,7 +119,7 @@ final class XmlGatewayClient
         }
 
         $this->assertSessionEstablished('live zone update');
-        $this->config->validateForGateway();
+        $this->config->validateProviderConfig();
 
         $requestDocument = $this->buildUpdateRequest($zoneDocument, $domain, $targets, $ipv4, $ipv6);
         $result = $this->request(
@@ -138,7 +138,7 @@ final class XmlGatewayClient
     public function inspectTargets(string $domain, array $targets, bool $requireIpv4, bool $requireIpv6): array
     {
         $this->assertSessionEstablished('read-only target validation');
-        $this->config->validateForGateway();
+        $this->config->validateProviderConfig();
 
         $zoneDocument = $this->fetchZone($domain);
         $records = array();

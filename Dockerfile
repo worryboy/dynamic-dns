@@ -7,18 +7,19 @@ LABEL org.opencontainers.image.title="InterNetX DynDNS" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.vendor="worryboy"
 
-RUN apk add --no-cache \
-        ca-certificates \
-        libcurl \
-        libxml2 \
-    && apk add --no-cache --virtual .build-deps \
+WORKDIR /app
+
+RUN set -eux; \
+    apk add --no-cache --virtual .phpize-deps \
         $PHPIZE_DEPS \
         curl-dev \
-        libxml2-dev \
-    && docker-php-ext-install curl dom \
-    && apk del .build-deps
-
-WORKDIR /app
+        libxml2-dev; \
+    docker-php-ext-install -j"$(nproc)" curl dom; \
+    apk add --no-cache \
+        ca-certificates \
+        libcurl \
+        libxml2; \
+    apk del --no-network .phpize-deps
 
 COPY . /app
 

@@ -1,5 +1,6 @@
 .git
 .env
+.env.dns
 state/*
 !state/.gitkeep
 logs/

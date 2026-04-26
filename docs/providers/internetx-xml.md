@@ -1,0 +1,51 @@
+# InterNetX XML Provider
+
+Current provider: InterNetX / AutoDNS / SchlundTech-related DNS service.
+Current interface: XML.
+
+The worker uses the XML `auth_session` flow:
+
+- create a session with username, password, and context
+- use the session hash for read-only ZoneInfo and live ZoneUpdate requests
+- close the session at the end of the cycle
+
+## Required Env
+
+```env
+INTERNETX_HOST=https://gateway.autodns.com
+INTERNETX_USER=your-api-user
+INTERNETX_PASSWORD=your-api-password
+INTERNETX_CONTEXT=9
+```
+
+Target selection still belongs to the generic worker config:
+
+```env
+TARGET_HOST=dyndns.example.com
+```
+
+or:
+
+```env
+TARGET_HOSTS=app1.example.com,app2.example.com
+```
+
+## Optional Provider Env
+
+```env
+INTERNETX_SYSTEM_NS=ns.example.com
+```
+
+`INTERNETX_SYSTEM_NS` maps to the XML Zone object field `<system_ns>` during read-only zone inquiry. Most DynDNS runs leave it unset.
+
+## Context Handling
+
+`INTERNETX_CONTEXT` is required for the current XML session login. This project defaults the example value to `9`, matching the existing working setup. If your InterNetX/AutoDNS account uses a different context, set it explicitly.
+
+## Assumptions And Limits
+
+- The worker updates existing `A` and `AAAA` records; it does not create missing records.
+- The XML templates `request-get.xml` and `request-put.xml` are still used for ZoneInfo and ZoneUpdate.
+- `DRY_RUN=true` permits read-only provider validation but blocks live mutation.
+- The session hash is kept only in memory and is redacted in debug logs.
+- Future InterNetX interfaces, for example JSON, should be added as a separate provider interface implementation rather than changing the XML client in place.

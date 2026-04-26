@@ -2,9 +2,14 @@
 
 Containerized InterNetX DynDNS worker for IPv4/IPv6-aware DNS updates.
 
-This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the InterNetX/AutoDNS XML API when the address changes.
+This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the current DNS provider interface when the address changes.
 
 Current release: `0.4.0`
+
+Current provider: InterNetX / AutoDNS / SchlundTech-related DNS.
+Current interface: InterNetX XML with `auth_session`.
+
+The worker core is separated from provider/interface code. Provider-specific configuration and limits for the current InterNetX XML support live in [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md).
 
 Source code is available on GitHub: [worryboy/internetx-dyndns](https://github.com/worryboy/internetx-dyndns)
 Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://hub.docker.com/r/worryboy/internetx-dyndns)
@@ -28,6 +33,8 @@ This project is container-only. The image only needs outbound HTTPS access to:
 - the InterNetX/AutoDNS XML API endpoint
 
 No inbound ports are required. The worker does not listen on any port, and no `ports:` mapping is needed.
+
+Future providers or future interfaces of the same provider can be added behind the provider layer without changing the container runtime model.
 
 ## Image Tags
 
@@ -305,6 +312,8 @@ Example and documentation release:
 - dedicated Traefik/CrowdSec DynDNS example
 - DNS-specific `.env.dns` separation for the example
 - reference alignment with the goNeuland Traefik/CrowdSec guide
+- provider/interface separation with InterNetX XML as the current implementation
+- provider documentation for current InterNetX XML configuration and limits
 - `PUSHOVER_LOCATION_PREFIX` examples for IP change notifications
 
 ### 0.3.0
