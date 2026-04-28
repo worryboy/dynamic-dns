@@ -368,7 +368,7 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine3.22`
 - app image: `internetx-dyndns:local`
-- release image: `worryboy/internetx-dyndns:0.4.0`
+- release image: `worryboy/internetx-dyndns:0.5.0`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`
@@ -376,7 +376,7 @@ Container layout:
 Image hardening notes:
 
 - the image keeps only runtime libraries needed for PHP `curl` and `dom`
-- extension build dependencies are installed in a temporary `.build-deps` package group and removed after build
+- extension build dependencies are installed in a temporary `.phpize-deps` package group and removed after build
 - the final image does not keep the shell `curl` tool because runtime HTTP requests are performed through the PHP `curl` extension
 - some scanner findings may still come from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine base packages such as `tar`, `libcurl`, or `nghttp2`
 - those inherited findings are reduced by rebuilding on newer upstream PHP/Alpine base releases when they become available
@@ -413,6 +413,8 @@ docker compose version
 
 ## Provenance
 
-This repository evolved from the earlier PHP DynDNS project [`AndLindemann/php-dyndns`](https://github.com/AndLindemann/php-dyndns). Since then it has been substantially adapted and extended into a container-oriented InterNetX DynDNS worker with session-based authentication, dry-run validation, Docker-oriented runtime packaging, release automation, and multi-target support.
+This repository descends from [`martinlowinski/php-dyndns`](https://github.com/martinlowinski/php-dyndns) through the small correction fork [`AndLindemann/php-dyndns`](https://github.com/AndLindemann/php-dyndns). The current repository has since been substantially extended and reworked into a container-oriented InterNetX XML DynDNS worker.
 
-The current project should be understood as a significantly reworked descendant rather than a direct untouched copy of that earlier upstream.
+Modern additions in this repository include XML `auth_session` handling, dry-run validation, multi-target updates, no-change policy, Pushover notifications, provider/interface separation, Docker packaging, and Traefik/CrowdSec example documentation.
+
+The original author has confirmed that MIT licensing is acceptable and has added MIT licensing to the original upstream. This repository includes an MIT [LICENSE](LICENSE) and a concise [ATTRIBUTION.md](ATTRIBUTION.md).
