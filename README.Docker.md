@@ -4,7 +4,7 @@ Containerized InterNetX DynDNS worker for IPv4/IPv6-aware DNS updates.
 
 This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the current DNS provider interface when the address changes.
 
-Current release: `0.4.0`
+Current release: `0.5.0`
 
 Current provider: InterNetX / AutoDNS / SchlundTech-related DNS.
 Current interface: InterNetX XML with `auth_session`.
@@ -38,7 +38,7 @@ Future providers or future interfaces of the same provider can be added behind t
 
 ## Image Tags
 
-- `worryboy/internetx-dyndns:0.4.0` - versioned release
+- `worryboy/internetx-dyndns:0.5.0` - versioned release
 - `worryboy/internetx-dyndns:latest` - latest published stable image
 
 Use a versioned tag for repeatable deployments. Use `latest` if you want the newest published stable image.
@@ -184,7 +184,7 @@ docker run --rm \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.4.0
+  worryboy/internetx-dyndns:0.5.0
 ```
 
 For Compose validation with `RUN_ONCE=true`, use:
@@ -207,7 +207,7 @@ docker run -d \
   --env-file .env \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.4.0
+  worryboy/internetx-dyndns:0.5.0
 ```
 
 Start with the Docker-Hub-oriented Compose file:
@@ -315,6 +315,15 @@ An unchanged detected public IP does not automatically mean nothing needs to hap
 
 ## Release Notes
 
+### 0.5.0
+
+Provenance and licensing alignment release:
+
+- documented the origin chain from `martinlowinski/php-dyndns` through the small `AndLindemann/php-dyndns` correction fork to this repository
+- added MIT licensing and lightweight attribution documentation
+- noted that the original author has confirmed MIT licensing is acceptable and added MIT licensing upstream
+- bumped release references to `0.5.0`
+
 ### 0.4.0
 
 Example and documentation release:
@@ -343,6 +352,6 @@ Feature release:
 
 ## Provenance
 
-This repository originated from the earlier PHP DynDNS project [`AndLindemann/php-dyndns`](https://github.com/AndLindemann/php-dyndns) and has since been significantly adapted, refactored, and extended for the current container-oriented InterNetX worker model.
+This repository descends from [`martinlowinski/php-dyndns`](https://github.com/martinlowinski/php-dyndns) through the small correction fork [`AndLindemann/php-dyndns`](https://github.com/AndLindemann/php-dyndns). The current repository has since been substantially extended and reworked for the container-oriented InterNetX XML worker model.
 
-The current repository is not just a direct copy of that earlier upstream; it has been substantially reworked compared to the original starting point.
+See [ATTRIBUTION.md](ATTRIBUTION.md) for the concise attribution chain and [LICENSE](LICENSE) for the MIT license.

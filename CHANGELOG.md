@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 - Provenance And MIT Alignment
+
+- Clarified the origin chain from `martinlowinski/php-dyndns` through the small `AndLindemann/php-dyndns` correction fork to this repository.
+- Added MIT licensing and lightweight attribution documentation.
+- Documented that the original author has confirmed MIT licensing is acceptable and has added MIT licensing to the original upstream.
+- Updated provenance wording to describe this project as a substantially extended InterNetX XML DynDNS worker rather than a direct copy of the earlier script.
+- Updated release references to `0.5.0`.
+
 ## 0.4.0 - Provider Interface And Traefik/CrowdSec Example
 
 - Separated generic worker flow from DNS provider/interface code.
