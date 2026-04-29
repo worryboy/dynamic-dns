@@ -42,10 +42,17 @@ INTERNETX_SYSTEM_NS=ns.example.com
 
 `INTERNETX_CONTEXT` is required for the current XML session login. This project defaults the example value to `9`, matching the existing working setup. If your InterNetX/AutoDNS account uses a different context, set it explicitly.
 
+## Authentication And TLS Notes
+
+The current InterNetX XML implementation uses username, password, and context only to create an `auth_session`. It does not implement a separate 2FA flow, and no optional advanced authentication variables are currently supported.
+
+All built-in HTTPS requests keep TLS peer and host verification enabled. This applies to InterNetX XML API calls, public IP detection providers, and optional Pushover notifications.
+
 ## Assumptions And Limits
 
 - The worker updates existing `A` and `AAAA` records; it does not create missing records.
 - The XML templates `request-get.xml` and `request-put.xml` are still used for ZoneInfo and ZoneUpdate.
 - `DRY_RUN=true` permits read-only provider validation but blocks live mutation.
 - The session hash is kept only in memory and is redacted in debug logs.
+- `DEBUG=true` logs sanitized XML request and response payloads for provider calls; passwords, usernames, and session hashes are redacted.
 - Future InterNetX interfaces, for example JSON, should be added as a separate provider interface implementation rather than changing the XML client in place.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 - State Persistence Bugfix
+
+- Persist detected public IP state after successful target validation even when all targets are already in sync and no live DNS update is needed.
+- Prevent repeated `first_seen` status and repeated Pushover notifications on unchanged follow-up runs.
+- Added clearer state directory, state file, and state save logging.
+- Updated release references to `0.5.1`.
+
 ## 0.5.0 - Provenance And MIT Alignment
 
 - Clarified the origin chain from `martinlowinski/php-dyndns` through the small `AndLindemann/php-dyndns` correction fork to this repository.

@@ -26,7 +26,20 @@ final class StateStore
     public function put(string $key, string $value): void
     {
         $this->ensureDirectoryExists();
-        file_put_contents($this->pathFor($key), $value . PHP_EOL, LOCK_EX);
+        $written = file_put_contents($this->pathFor($key), $value . PHP_EOL, LOCK_EX);
+        if ($written === false) {
+            throw new RuntimeException(sprintf('Unable to write state file: %s', $this->pathFor($key)));
+        }
+    }
+
+    public function directory(): string
+    {
+        return $this->directory;
+    }
+
+    public function filePath(string $key): string
+    {
+        return $this->pathFor($key);
     }
 
     public function ensureDirectoryExists(): void

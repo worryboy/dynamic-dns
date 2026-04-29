@@ -55,6 +55,11 @@ final class DynDnsService
             ));
             $this->validateStartup();
             $this->stateStore->ensureDirectoryExists();
+            $this->debug('State directory ready', array(
+                'state_dir' => $this->stateStore->directory(),
+                'last_ipv4_path' => $this->stateStore->filePath('last_ipv4'),
+                'last_ipv6_path' => $this->stateStore->filePath('last_ipv6'),
+            ));
             $this->exitStage('configuration_validated');
 
             $lastIpv4 = $this->config->ipv4Enabled() ? $this->stateStore->get('last_ipv4') : null;
@@ -83,7 +88,9 @@ final class DynDnsService
             $this->enterStage(self::STAGE_UPDATE_DECISION);
             $this->debug('Loaded previous state', array(
                 'last_ipv4' => $lastIpv4 ?? 'none',
+                'last_ipv4_path' => $this->stateStore->filePath('last_ipv4'),
                 'last_ipv6' => $lastIpv6 ?? 'none',
+                'last_ipv6_path' => $this->stateStore->filePath('last_ipv6'),
             ));
 
             $decisions = $this->buildTargetDecisions($inspection['records'], $ipv4, $ipv6);
@@ -131,6 +138,7 @@ final class DynDnsService
                         'live_mutation_attempted' => 'false',
                     ));
                 }
+                $this->persistDetectedState($ipv4, $ipv6, 'no_update_required');
                 $this->notifyIpChangeIfNeeded($ipv4, $ipv6, $ipv4Status, $ipv6Status);
                 $this->logRunSummary($lastIpv4, $lastIpv6, $ipv4, $ipv6, $decisions, 0, $publicIpChanged);
                 $this->exitStage('no_update_required');
@@ -193,12 +201,7 @@ final class DynDnsService
                 $this->provider->updateZoneRecords($zoneInspection['document'], $domain, $changedTargets, $ipv4, $ipv6);
             }
 
-            if ($ipv4 !== null) {
-                $this->stateStore->put('last_ipv4', $ipv4);
-            }
-            if ($ipv6 !== null) {
-                $this->stateStore->put('last_ipv6', $ipv6);
-            }
+            $this->persistDetectedState($ipv4, $ipv6, 'live_update_successful');
             $this->notifyIpChangeIfNeeded($ipv4, $ipv6, $ipv4Status, $ipv6Status);
             $updatedTargets = $forceNoChangeUpdate ? count($decisions) : $this->countTargetsRequiringUpdate($decisions);
 
@@ -578,6 +581,56 @@ final class DynDnsService
                 'error' => $exception->getMessage(),
                 'pushover_enabled' => $this->pushover->enabled() ? 'true' : 'false',
             ));
+        }
+    }
+
+    private function persistDetectedState(?string $ipv4, ?string $ipv6, string $reason): void
+    {
+        if ($ipv4 === null && $ipv6 === null) {
+            $this->debug('State persistence skipped because no usable public IP was detected', array(
+                'reason' => $reason,
+            ));
+            return;
+        }
+
+        if ($ipv4 !== null) {
+            $this->logger->info('Saving current IPv4 to state', array(
+                'reason' => $reason,
+                'state_file' => $this->stateStore->filePath('last_ipv4'),
+                'ipv4' => $ipv4,
+            ));
+            try {
+                $this->stateStore->put('last_ipv4', $ipv4);
+                $this->logger->success('Current IPv4 state saved', array(
+                    'state_file' => $this->stateStore->filePath('last_ipv4'),
+                ));
+            } catch (Throwable $exception) {
+                $this->logger->error('Current IPv4 state save failed', array(
+                    'state_file' => $this->stateStore->filePath('last_ipv4'),
+                    'error' => $exception->getMessage(),
+                ));
+                throw $exception;
+            }
+        }
+
+        if ($ipv6 !== null) {
+            $this->logger->info('Saving current IPv6 to state', array(
+                'reason' => $reason,
+                'state_file' => $this->stateStore->filePath('last_ipv6'),
+                'ipv6' => $ipv6,
+            ));
+            try {
+                $this->stateStore->put('last_ipv6', $ipv6);
+                $this->logger->success('Current IPv6 state saved', array(
+                    'state_file' => $this->stateStore->filePath('last_ipv6'),
+                ));
+            } catch (Throwable $exception) {
+                $this->logger->error('Current IPv6 state save failed', array(
+                    'state_file' => $this->stateStore->filePath('last_ipv6'),
+                    'error' => $exception->getMessage(),
+                ));
+                throw $exception;
+            }
         }
     }
 

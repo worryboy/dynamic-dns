@@ -1,6 +1,6 @@
 services:
   internetx-dyndns:
-    image: worryboy/internetx-dyndns:0.5.0
+    image: worryboy/internetx-dyndns:0.5.1
     container_name: internetx-dyndns
     # For RUN_ONCE=true, validate with:
     # docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm internetx-dyndns
