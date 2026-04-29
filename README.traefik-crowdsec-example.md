@@ -108,6 +108,14 @@ Follow logs:
 docker compose -f docker-compose.traefik-crowdsec-example.yml logs -f
 ```
 
+Check the DynDNS worker health:
+
+```bash
+docker compose -f docker-compose.traefik-crowdsec-example.yml ps internetx-dyndns
+```
+
+The healthcheck reads `/app/state/health.json`, which is written after each DynDNS cycle. It reports unhealthy if the last cycle failed or the last successful cycle is too old.
+
 ## Operational Ordering
 
 The compose file declares Traefik and CrowdSec after `internetx-dyndns` with `depends_on`. This expresses the intended order: DNS should be checked before Traefik-dependent hostnames and certificate flows are expected to work.

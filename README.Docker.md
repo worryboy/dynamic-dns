@@ -4,7 +4,7 @@ Containerized InterNetX DynDNS worker for IPv4/IPv6-aware DNS updates.
 
 This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the current DNS provider interface when the address changes.
 
-Current release: `0.5.1`
+Current release: `0.5.2`
 
 Current provider: InterNetX / AutoDNS / SchlundTech-related DNS.
 Current interface: InterNetX XML with `auth_session`.
@@ -38,7 +38,7 @@ Future providers or future interfaces of the same provider can be added behind t
 
 ## Image Tags
 
-- `worryboy/internetx-dyndns:0.5.1` - versioned release
+- `worryboy/internetx-dyndns:0.5.2` - versioned release
 - `worryboy/internetx-dyndns:latest` - latest published stable image
 
 Use a versioned tag for repeatable deployments. Use `latest` if you want the newest published stable image.
@@ -184,7 +184,7 @@ docker run --rm \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.5.1
+  worryboy/internetx-dyndns:0.5.2
 ```
 
 For Compose validation with `RUN_ONCE=true`, use:
@@ -207,7 +207,7 @@ docker run -d \
   --env-file .env \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.5.1
+  worryboy/internetx-dyndns:0.5.2
 ```
 
 Start with the Docker-Hub-oriented Compose file:
@@ -218,6 +218,53 @@ docker compose -f docker-compose.hub.yml up -d
 ```
 
 For a special one-host / many-hostname reverse-proxy scenario with Traefik and CrowdSec, see [README.traefik-crowdsec-example.md](README.traefik-crowdsec-example.md). That example is intentionally separate from the standard deployment model and uses `.env.dns` so it does not collide with an existing Traefik/CrowdSec stack `.env`.
+
+## Logs And Health
+
+By default, application logs go to `php://stdout`, so Docker captures them as normal container logs. View them with:
+
+```bash
+docker logs -f internetx-dyndns
+```
+
+or with Compose:
+
+```bash
+docker compose logs -f internetx-dyndns
+```
+
+Set `LOG_TARGET` only if you want the PHP logger to write somewhere else, for example a file inside the writable state mount:
+
+```env
+LOG_TARGET=/app/state/internetx-dyndns.log
+```
+
+The container healthcheck reads a small JSON status file. By default, the worker writes it to `/app/state/health.json` after each cycle. A healthy result means the last cycle succeeded and is recent enough for the configured check interval. A failing result means the last cycle failed, the status file is missing, or the last success is stale.
+
+The image includes this healthcheck:
+
+```dockerfile
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=3 CMD php /app/bin/healthcheck.php
+```
+
+Compose files in this repository use the same check:
+
+```yaml
+healthcheck:
+  test: ["CMD", "php", "/app/bin/healthcheck.php"]
+  interval: 60s
+  timeout: 10s
+  start_period: 120s
+  retries: 3
+```
+
+Optional IP status history can be enabled with:
+
+```env
+IP_STATUS_LOG=/app/state/ip-status.log
+```
+
+That file is JSON lines, one entry per successful cycle, with timestamp, IPv4/IPv6 values, and status values such as `first_seen`, `changed`, or `unchanged`.
 
 ## Dry-Run Support
 
@@ -314,6 +361,14 @@ An unchanged detected public IP does not automatically mean nothing needs to hap
 - Some vulnerability scanner findings may still be inherited from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine runtime packages. Those are usually resolved by rebuilding on newer upstream base releases when fixes land there.
 
 ## Release Notes
+
+### 0.5.2
+
+Operability release:
+
+- documented Docker and Compose log viewing, `LOG_TARGET`, and stdout/stderr defaults
+- added optional `IP_STATUS_LOG` JSON-lines history for public IP status
+- added `health.json` cycle status output and Docker/Compose healthchecks
 
 ### 0.5.1
 
