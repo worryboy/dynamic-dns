@@ -189,6 +189,9 @@ Before running live updates, check the zone for every configured target:
 | `INTERNETX_SYSTEM_NS` | optional runtime/debug | No | Optional zone inquiry selector for the first system-managed nameserver. Usually unset. | `ns1.routing.net` |
 | `STATE_DIR` | optional runtime/debug | No | Directory for persisted `last_ipv4` and `last_ipv6` values. | `/app/state` |
 | `CHECK_INTERVAL_SECONDS` | optional runtime/debug | No | Sleep interval for continuous container mode. Ignored when `RUN_ONCE=true`. | `300` |
+| `IP_STATUS_LOG` | optional operability | No | Optional JSON-lines history file for detected IP status after successful cycles. Disabled when unset. | `/app/state/ip-status.log` |
+| `HEALTH_STATUS_FILE` | optional operability | No | JSON status file used by the Docker healthcheck. Defaults to `STATE_DIR/health.json`. | `/app/state/health.json` |
+| `HEALTH_MAX_AGE_SECONDS` | optional operability | No | Maximum age accepted by the healthcheck for the last successful cycle. Defaults to about three check intervals plus one minute. | `960` |
 | `HTTP_CONNECT_TIMEOUT` | optional runtime/debug | No | HTTP connect timeout for IP and XML requests. | `10` |
 | `HTTP_REQUEST_TIMEOUT` | optional runtime/debug | No | Total HTTP request timeout for IP and XML requests. | `20` |
 | `LOG_TARGET` | optional runtime/debug | No | PHP stream or file path for logs. | `php://stdout` |
@@ -197,6 +200,18 @@ Before running live updates, check the zone for every configured target:
 
 There are no optional advanced authentication settings in the current worker. Credentials are used for `AuthSessionCreate` and `AuthSessionDelete`; zone inquiry and update requests use `<auth_session><hash>...</hash></auth_session>`.
 See [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md) for the provider-specific InterNetX XML configuration notes.
+
+## Logs And Health
+
+By default, runtime logs go to `php://stdout`, so Docker and Docker Compose collect them as normal container logs:
+
+```bash
+docker compose logs -f internetx-dyndns
+```
+
+Set `LOG_TARGET` only if you want logs written somewhere else, such as `/app/state/internetx-dyndns.log`.
+
+The worker writes a health status file after each cycle, defaulting to `STATE_DIR/health.json`. Docker healthchecks use that file to verify that the last cycle succeeded and is recent. Set `IP_STATUS_LOG=/app/state/ip-status.log` if you also want an optional JSON-lines history of IPv4/IPv6 status values.
 
 ## Safe Local Validation
 
@@ -368,7 +383,7 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine3.22`
 - app image: `internetx-dyndns:local`
-- release image: `worryboy/internetx-dyndns:0.5.1`
+- release image: `worryboy/internetx-dyndns:0.5.2`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`

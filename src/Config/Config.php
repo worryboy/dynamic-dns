@@ -29,6 +29,8 @@ final class Config
     private int $requestTimeout;
     private int $checkInterval;
     private string $stateDir;
+    private string $ipStatusLog;
+    private string $healthStatusFile;
     private string $logTarget;
     private string $projectRoot;
     private bool $envFileExists;
@@ -58,6 +60,8 @@ final class Config
         $this->requestTimeout = $data['request_timeout'];
         $this->checkInterval = $data['check_interval'];
         $this->stateDir = $data['state_dir'];
+        $this->ipStatusLog = $data['ip_status_log'];
+        $this->healthStatusFile = $data['health_status_file'];
         $this->logTarget = $data['log_target'];
         $this->projectRoot = $data['project_root'];
         $this->envFileExists = $data['env_file_exists'];
@@ -97,6 +101,10 @@ final class Config
             $pushoverLocationPrefix = $legacyPushoverLocationPrefix;
         }
 
+        $stateDir = self::resolvePath($projectRoot, self::env('STATE_DIR', 'state'));
+        $ipStatusLog = self::normalizeOptional(self::env('IP_STATUS_LOG'));
+        $healthStatusFile = self::normalizeOptional(self::env('HEALTH_STATUS_FILE'));
+
         return new self(array(
             'host' => self::env('INTERNETX_HOST', 'https://gateway.autodns.com'),
             'user' => self::env('INTERNETX_USER', ''),
@@ -120,7 +128,9 @@ final class Config
             'connect_timeout' => self::positiveInt(self::env('HTTP_CONNECT_TIMEOUT', '10'), 10),
             'request_timeout' => self::positiveInt(self::env('HTTP_REQUEST_TIMEOUT', '20'), 20),
             'check_interval' => self::positiveInt(self::env('CHECK_INTERVAL_SECONDS', '300'), 300),
-            'state_dir' => self::resolvePath($projectRoot, self::env('STATE_DIR', 'state')),
+            'state_dir' => $stateDir,
+            'ip_status_log' => $ipStatusLog === null ? '' : self::resolvePath($projectRoot, $ipStatusLog),
+            'health_status_file' => $healthStatusFile === null ? $stateDir . DIRECTORY_SEPARATOR . 'health.json' : self::resolvePath($projectRoot, $healthStatusFile),
             'log_target' => self::env('LOG_TARGET', 'php://stdout'),
             'project_root' => $projectRoot,
             'env_file_exists' => is_file($projectRoot . DIRECTORY_SEPARATOR . '.env'),
@@ -185,6 +195,16 @@ final class Config
     public function stateDir(): string
     {
         return $this->stateDir;
+    }
+
+    public function ipStatusLog(): string
+    {
+        return $this->ipStatusLog;
+    }
+
+    public function healthStatusFile(): string
+    {
+        return $this->healthStatusFile;
     }
 
     public function logTarget(): string
@@ -257,6 +277,9 @@ final class Config
             'RUN_ONCE',
             'INTERNETX_SYSTEM_NS',
             'STATE_DIR',
+            'IP_STATUS_LOG',
+            'HEALTH_STATUS_FILE',
+            'HEALTH_MAX_AGE_SECONDS',
             'CHECK_INTERVAL_SECONDS',
             'ENABLE_IPV4',
             'ENABLE_IPV6',

@@ -1,6 +1,6 @@
 FROM php:8.3-cli-alpine3.22
 
-ARG APP_VERSION=0.5.1
+ARG APP_VERSION=0.5.2
 
 LABEL org.opencontainers.image.title="InterNetX DynDNS" \
       org.opencontainers.image.description="Container-only InterNetX XML API DynDNS worker" \
@@ -25,5 +25,7 @@ COPY . /app
 
 RUN chmod +x /app/docker/start.sh \
     && mkdir -p /app/state
+
+HEALTHCHECK --interval=60s --timeout=10s --start-period=120s --retries=3 CMD php /app/bin/healthcheck.php
 
 ENTRYPOINT ["/app/docker/start.sh"]

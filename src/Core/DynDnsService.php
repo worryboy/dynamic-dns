@@ -59,6 +59,8 @@ final class DynDnsService
                 'state_dir' => $this->stateStore->directory(),
                 'last_ipv4_path' => $this->stateStore->filePath('last_ipv4'),
                 'last_ipv6_path' => $this->stateStore->filePath('last_ipv6'),
+                'health_status_file' => $this->config->healthStatusFile(),
+                'ip_status_log' => $this->config->ipStatusLog() !== '' ? $this->config->ipStatusLog() : 'disabled',
             ));
             $this->exitStage('configuration_validated');
 
@@ -221,6 +223,11 @@ final class DynDnsService
             return 0;
         } catch (Throwable $exception) {
             $this->logStageFailure($exception);
+            $this->writeHealthStatus(false, array(
+                'stage' => $this->currentStage,
+                'error' => $exception->getMessage(),
+                'live_mutation_attempted' => $this->liveMutationAttempted ? 'true' : 'false',
+            ));
             return $resultCode;
         } finally {
             $this->cleanupSession();
@@ -662,6 +669,97 @@ final class DynDnsService
         }
 
         $this->logger->info('Execution cycle summary', $summary);
+        $this->appendIpStatusLog($summary);
+        $this->writeHealthStatus(true, $summary);
+    }
+
+    private function appendIpStatusLog(array $summary): void
+    {
+        if ($this->config->ipStatusLog() === '') {
+            return;
+        }
+
+        $entry = array(
+            'timestamp' => gmdate('c'),
+            'ipv4' => $summary['ipv4'] ?? null,
+            'ipv6' => $summary['ipv6'] ?? null,
+            'ipv4_status' => $summary['public_ipv4_status'] ?? 'unknown',
+            'ipv6_status' => $summary['public_ipv6_status'] ?? 'unknown',
+            'public_ip_changed' => $summary['public_ip_changed'] ?? 'unknown',
+        );
+
+        try {
+            $this->appendJsonLine($this->config->ipStatusLog(), $entry);
+        } catch (Throwable $exception) {
+            $this->logger->warning('IP status history log write failed', array(
+                'ip_status_log' => $this->config->ipStatusLog(),
+                'error' => $exception->getMessage(),
+            ));
+        }
+    }
+
+    private function writeHealthStatus(bool $success, array $context): void
+    {
+        $now = gmdate('c');
+        $status = array_merge(array(
+            'timestamp' => $now,
+            'last_run_success' => $success,
+            'last_success_at' => $success ? $now : null,
+            'version' => AppInfo::version(),
+        ), $context);
+
+        try {
+            $this->writeJsonFile($this->config->healthStatusFile(), $status);
+        } catch (Throwable $exception) {
+            $this->logger->warning('Health status file write failed', array(
+                'health_status_file' => $this->config->healthStatusFile(),
+                'error' => $exception->getMessage(),
+            ));
+        }
+    }
+
+    private function appendJsonLine(string $path, array $entry): void
+    {
+        $this->ensureParentDirectory($path);
+        $json = json_encode($entry, JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            throw new RuntimeException('Unable to encode IP status log entry.');
+        }
+
+        $written = file_put_contents($path, $json . PHP_EOL, FILE_APPEND | LOCK_EX);
+        if ($written === false) {
+            throw new RuntimeException(sprintf('Unable to write IP status log: %s', $path));
+        }
+    }
+
+    private function writeJsonFile(string $path, array $data): void
+    {
+        $this->ensureParentDirectory($path);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        if ($json === false) {
+            throw new RuntimeException('Unable to encode health status file.');
+        }
+
+        $written = file_put_contents($path, $json . PHP_EOL, LOCK_EX);
+        if ($written === false) {
+            throw new RuntimeException(sprintf('Unable to write health status file: %s', $path));
+        }
+    }
+
+    private function ensureParentDirectory(string $path): void
+    {
+        $directory = dirname($path);
+        if ($directory === '' || $directory === '.') {
+            return;
+        }
+
+        if (is_dir($directory)) {
+            return;
+        }
+
+        if (!mkdir($concurrentDirectory = $directory, 0775, true) && !is_dir($concurrentDirectory)) {
+            throw new RuntimeException(sprintf('Unable to create directory: %s', $directory));
+        }
     }
 
     private function publicIpStatus(bool $enabled, ?string $previous, ?string $current): string

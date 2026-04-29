@@ -25,6 +25,11 @@ try {
         ));
     }
     $logger->error('Configuration loading failed', array('error' => $exception->getMessage()));
+    writeStartupHealthStatus(false, array(
+        'stage' => 'startup/config validation',
+        'error' => $exception->getMessage(),
+        'version' => AppInfo::version(),
+    ));
     exit(1);
 }
 
@@ -50,3 +55,35 @@ $service = new DynDnsService($config, $logger, $stateStore, $resolver, $provider
 
 $exitCode = $service->runOnce();
 exit($exitCode);
+
+function writeStartupHealthStatus(bool $success, array $context): void
+{
+    $path = startupHealthStatusFile();
+    $payload = array_merge(array(
+        'timestamp' => gmdate('c'),
+        'last_run_success' => $success,
+        'last_success_at' => null,
+    ), $context);
+
+    $directory = dirname($path);
+    if ($directory !== '' && $directory !== '.' && !is_dir($directory)) {
+        @mkdir($directory, 0775, true);
+    }
+
+    @file_put_contents($path, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL, LOCK_EX);
+}
+
+function startupHealthStatusFile(): string
+{
+    $stateDir = getenv('STATE_DIR');
+    if ($stateDir === false || trim((string) $stateDir) === '') {
+        $stateDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'state';
+    }
+
+    $healthStatusFile = getenv('HEALTH_STATUS_FILE');
+    if ($healthStatusFile === false || trim((string) $healthStatusFile) === '') {
+        return rtrim((string) $stateDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'health.json';
+    }
+
+    return (string) $healthStatusFile;
+}
