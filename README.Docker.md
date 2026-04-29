@@ -4,7 +4,7 @@ Containerized InterNetX DynDNS worker for IPv4/IPv6-aware DNS updates.
 
 This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the current DNS provider interface when the address changes.
 
-Current release: `0.5.0`
+Current release: `0.5.1`
 
 Current provider: InterNetX / AutoDNS / SchlundTech-related DNS.
 Current interface: InterNetX XML with `auth_session`.
@@ -38,7 +38,7 @@ Future providers or future interfaces of the same provider can be added behind t
 
 ## Image Tags
 
-- `worryboy/internetx-dyndns:0.5.0` - versioned release
+- `worryboy/internetx-dyndns:0.5.1` - versioned release
 - `worryboy/internetx-dyndns:latest` - latest published stable image
 
 Use a versioned tag for repeatable deployments. Use `latest` if you want the newest published stable image.
@@ -184,7 +184,7 @@ docker run --rm \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.5.0
+  worryboy/internetx-dyndns:0.5.1
 ```
 
 For Compose validation with `RUN_ONCE=true`, use:
@@ -207,7 +207,7 @@ docker run -d \
   --env-file .env \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.5.0
+  worryboy/internetx-dyndns:0.5.1
 ```
 
 Start with the Docker-Hub-oriented Compose file:
@@ -314,6 +314,14 @@ An unchanged detected public IP does not automatically mean nothing needs to hap
 - Some vulnerability scanner findings may still be inherited from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine runtime packages. Those are usually resolved by rebuilding on newer upstream base releases when fixes land there.
 
 ## Release Notes
+
+### 0.5.1
+
+State persistence bugfix release:
+
+- persist detected public IP state after successful target validation even when no live DNS update is needed
+- prevent repeated `first_seen` status and repeated Pushover notifications when all targets are already in sync
+- add clearer state path and state save logging
 
 ### 0.5.0
 

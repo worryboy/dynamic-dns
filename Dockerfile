@@ -1,6 +1,6 @@
 FROM php:8.3-cli-alpine3.22
 
-ARG APP_VERSION=0.5.0
+ARG APP_VERSION=0.5.1
 
 LABEL org.opencontainers.image.title="InterNetX DynDNS" \
       org.opencontainers.image.description="Container-only InterNetX XML API DynDNS worker" \
