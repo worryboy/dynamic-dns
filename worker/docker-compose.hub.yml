@@ -1,10 +1,8 @@
 services:
-  internetx-dyndns:
-    build:
-      context: .
-    container_name: internetx-dyndns
-    image: internetx-dyndns:local
-    # For RUN_ONCE=true, use: docker compose run --rm internetx-dyndns.
+  dynamic-dns-worker:
+    image: worryboy/dynamic-dns-worker:latest
+    container_name: dynamic-dns-worker
+    # For RUN_ONCE=true, use: docker compose run --rm dynamic-dns-worker.
     # This restart policy is intended for continuous RUN_ONCE=false operation.
     restart: unless-stopped
     read_only: true
@@ -17,7 +15,6 @@ services:
     tmpfs:
       - /tmp
     volumes:
-      - ./.env:/app/.env:ro
       - ./state:/app/state
     healthcheck:
       test: ["CMD", "php", "/app/bin/healthcheck.php"]

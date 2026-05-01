@@ -68,7 +68,7 @@ final class PushoverNotifier
         $body = http_build_query(array(
             'token' => $this->appKey,
             'user' => $this->userKey,
-            'title' => 'InterNetX DynDNS IP Change',
+            'title' => 'Dynamic DNS Worker IP Change',
             'message' => implode("\n", $lines),
         ));
 

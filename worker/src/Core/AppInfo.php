@@ -15,6 +15,6 @@ final class AppInfo
 
     public static function userAgent(): string
     {
-        return 'internetx-dyndns/' . self::version();
+        return 'dynamic-dns-worker/' . self::version();
     }
 }
