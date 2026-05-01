@@ -680,12 +680,12 @@ final class DynDnsService
         }
 
         $entry = array(
-            'timestamp' => gmdate('c'),
+            'timestamp' => Clock::nowIso8601(),
             'ipv4' => $summary['ipv4'] ?? null,
             'ipv6' => $summary['ipv6'] ?? null,
             'ipv4_status' => $summary['public_ipv4_status'] ?? 'unknown',
             'ipv6_status' => $summary['public_ipv6_status'] ?? 'unknown',
-            'public_ip_changed' => $summary['public_ip_changed'] ?? 'unknown',
+            'public_ip_changed' => $this->jsonBoolean($summary['public_ip_changed'] ?? false),
         );
 
         try {
@@ -700,13 +700,13 @@ final class DynDnsService
 
     private function writeHealthStatus(bool $success, array $context): void
     {
-        $now = gmdate('c');
+        $now = Clock::nowIso8601();
         $status = array_merge(array(
             'timestamp' => $now,
             'last_run_success' => $success,
             'last_success_at' => $success ? $now : null,
             'version' => AppInfo::version(),
-        ), $context);
+        ), $this->normalizeHealthContext($context));
 
         try {
             $this->writeJsonFile($this->config->healthStatusFile(), $status);
@@ -716,6 +716,36 @@ final class DynDnsService
                 'error' => $exception->getMessage(),
             ));
         }
+    }
+
+    private function normalizeHealthContext(array $context): array
+    {
+        foreach (array(
+            'public_ip_changed',
+            'force_update_on_no_change',
+            'live_mutation_attempted',
+        ) as $key) {
+            if (!isset($context[$key])) {
+                continue;
+            }
+
+            if ($context[$key] === 'true') {
+                $context[$key] = true;
+            } elseif ($context[$key] === 'false') {
+                $context[$key] = false;
+            }
+        }
+
+        return $context;
+    }
+
+    private function jsonBoolean($value): bool
+    {
+        if ($value === true || $value === 'true' || $value === 1 || $value === '1') {
+            return true;
+        }
+
+        return false;
     }
 
     private function appendJsonLine(string $path, array $entry): void

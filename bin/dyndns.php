@@ -60,7 +60,7 @@ function writeStartupHealthStatus(bool $success, array $context): void
 {
     $path = startupHealthStatusFile();
     $payload = array_merge(array(
-        'timestamp' => gmdate('c'),
+        'timestamp' => Clock::nowIso8601(),
         'last_run_success' => $success,
         'last_success_at' => null,
     ), $context);

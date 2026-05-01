@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/Core/AppInfo.php';
+require_once __DIR__ . '/Core/Clock.php';
 require_once __DIR__ . '/Core/Logger.php';
 require_once __DIR__ . '/Config/TargetHost.php';
 require_once __DIR__ . '/Config/Config.php';

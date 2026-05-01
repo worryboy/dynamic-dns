@@ -5,6 +5,7 @@
 - Documented default container logging to stdout/stderr and how to view logs with Docker and Docker Compose.
 - Added optional `IP_STATUS_LOG` JSON-lines history for detected IP status after successful cycles.
 - Added a runtime health status file and Docker/Compose healthchecks that verify the last successful cycle is recent.
+- Made application logs, `ip-status.log`, and `health.json` use the runtime `TZ` timezone consistently.
 - Updated release references to `0.5.2`.
 
 ## 0.5.1 - State Persistence Bugfix
