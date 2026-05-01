@@ -184,12 +184,20 @@ final class Config
 
     public function xmlGetZone(): string
     {
-        return $this->projectRoot . DIRECTORY_SEPARATOR . 'request-get.xml';
+        return $this->projectRoot . DIRECTORY_SEPARATOR . 'src'
+            . DIRECTORY_SEPARATOR . 'Provider'
+            . DIRECTORY_SEPARATOR . 'InterNetX'
+            . DIRECTORY_SEPARATOR . 'templates'
+            . DIRECTORY_SEPARATOR . 'zone-info.xml';
     }
 
     public function xmlPutZone(): string
     {
-        return $this->projectRoot . DIRECTORY_SEPARATOR . 'request-put.xml';
+        return $this->projectRoot . DIRECTORY_SEPARATOR . 'src'
+            . DIRECTORY_SEPARATOR . 'Provider'
+            . DIRECTORY_SEPARATOR . 'InterNetX'
+            . DIRECTORY_SEPARATOR . 'templates'
+            . DIRECTORY_SEPARATOR . 'zone-update.xml';
     }
 
     public function stateDir(): string

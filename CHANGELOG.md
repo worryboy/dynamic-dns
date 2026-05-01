@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4 - Repository Structure Cleanup
+
+- Moved InterNetX XML runtime templates from the repository root into `src/Provider/InterNetX/templates/`.
+- Renamed the XML templates to `zone-info.xml` and `zone-update.xml` to match their provider tasks.
+- Moved the Traefik/CrowdSec integration README to `docs/integrations/traefik-crowdsec.md`.
+- Removed unused root `robots.txt`.
+- Updated documentation links and release references to `0.5.4`.
+
 ## 0.5.2 - Operability Logging And Healthcheck
 
 - Documented default container logging to stdout/stderr and how to view logs with Docker and Docker Compose.
