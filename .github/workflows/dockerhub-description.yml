@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - README.Docker.md
+      - worker/README.Docker.md
       - .github/workflows/dockerhub-description.yml
 
 jobs:
@@ -23,6 +23,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: worryboy/internetx-dyndns
-          readme-filepath: ./README.Docker.md
-          short-description: Containerized InterNetX DynDNS worker for IPv4/IPv6-aware DNS updates.
+          repository: worryboy/dynamic-dns-worker
+          readme-filepath: ./worker/README.Docker.md
+          short-description: Provider-oriented Dynamic DNS worker for IPv4/IPv6-aware DNS updates.

@@ -1,17 +1,17 @@
 # Traefik + CrowdSec DynDNS Example
 
-This is a special `internetx-dyndns` deployment pattern for one-host / many-hostname reverse-proxy setups. It is an extension for DNS automation, not a replacement for a full Traefik/CrowdSec setup guide.
+This is a special `dynamic-dns-worker` deployment pattern for one-host / many-hostname reverse-proxy setups. It is an extension for DNS automation, not a replacement for a full Traefik/CrowdSec setup guide.
 
 Use the goNeuland Traefik/CrowdSec guide as the baseline for Traefik, CrowdSec, middleware, dashboard, certificate, and AppSec configuration:
 
 - Main guide: [Traefik ab v3.6 mit CrowdSec installieren und konfigurieren](https://goneuland.de/traefik-ab-v3-6-mit-crowdsec-installieren-und-konfigurieren/)
 - Migration/update note: [Migration 001: Traefik ab v3.6 mit CrowdSec installieren und konfigurieren](https://goneuland.de/migration-001-traefik-ab-v3-6-mit-crowdsec-installieren-und-konfigurieren/)
 
-This repository adds the DNS side: `internetx-dyndns` keeps several public DNS names aligned with the current public IP before those names are expected to work through Traefik.
+This repository adds the DNS side: `dynamic-dns-worker` keeps several public DNS names aligned with the current public IP before those names are expected to work through Traefik.
 
 ## What This Adds
 
-- an `internetx-dyndns` helper service
+- a `dynamic-dns-worker` helper service
 - a dedicated DNS env file, `.env.dns`
 - multi-target DNS updates through `TARGET_HOSTS`
 - optional Pushover notification prefix `PUSHOVER_LOCATION_PREFIX=Berlin`
@@ -23,7 +23,7 @@ The DynDNS container remains outbound-only. It has no published ports, no Traefi
 
 - The goNeuland guide owns the Traefik/CrowdSec stack design; this example only adds a DynDNS helper service.
 - DNS credentials and target names live in `.env.dns`, not in the Traefik/CrowdSec `.env`.
-- `internetx-dyndns` is not exposed through Traefik and does not join HTTP routing.
+- `dynamic-dns-worker` is not exposed through Traefik and does not join HTTP routing.
 - Multiple DNS names can point to the same host IP with `TARGET_HOSTS`.
 - Pushover can report real public IP changes if `PUSHOVER_APP_KEY`, `PUSHOVER_USER_KEY`, and `PUSHOVER_LOCATION_PREFIX` are configured.
 
@@ -31,7 +31,7 @@ The DynDNS container remains outbound-only. It has no published ports, no Traefi
 
 | File | Purpose |
 | --- | --- |
-| `.env.example` | Default example config for the normal DynDNS worker. |
+| `.env.example` | Default example config for the normal Dynamic DNS worker. |
 | `.env.dns.example` | DNS-only example config for this Traefik/CrowdSec integration example. |
 
 Traefik/CrowdSec stacks commonly already have their own `.env` for reverse-proxy, CrowdSec, certificate, and dashboard settings. Keeping DynDNS settings in `.env.dns` avoids collisions and makes the DNS secrets easier to spot.
@@ -90,7 +90,7 @@ chmod 600 letsencrypt/acme.json
 Validate the DNS worker first:
 
 ```bash
-docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm internetx-dyndns
+docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm dynamic-dns-worker
 ```
 
 This is the preferred command while `RUN_ONCE=true`. Do not use `up -d` for one-shot validation, because the example compose file uses `restart: unless-stopped` for the later continuous mode.
@@ -108,23 +108,23 @@ Follow logs:
 docker compose -f docker-compose.traefik-crowdsec-example.yml logs -f
 ```
 
-Check the DynDNS worker health:
+Check the Dynamic DNS worker health:
 
 ```bash
-docker compose -f docker-compose.traefik-crowdsec-example.yml ps internetx-dyndns
+docker compose -f docker-compose.traefik-crowdsec-example.yml ps dynamic-dns-worker
 ```
 
 The healthcheck reads `/app/state/health.json`, which is written after each DynDNS cycle. It reports unhealthy if the last cycle failed or the last successful cycle is too old.
 
 ## Operational Ordering
 
-The compose file declares Traefik and CrowdSec after `internetx-dyndns` with `depends_on`. This expresses the intended order: DNS should be checked before Traefik-dependent hostnames and certificate flows are expected to work.
+The compose file declares Traefik and CrowdSec after `dynamic-dns-worker` with `depends_on`. This expresses the intended order: DNS should be checked before Traefik-dependent hostnames and certificate flows are expected to work.
 
 Docker Compose startup order is not DNS propagation. It does not guarantee that public resolvers, browser clients, or certificate authorities can already see the new records. DNS propagation remains external to Compose and depends on authoritative DNS behavior, resolver caching, and record TTLs.
 
 ## Why DynDNS Is Not Routed Through Traefik
 
-`internetx-dyndns` is a CLI worker. It talks outbound to public IP providers and the InterNetX/AutoDNS XML API. It does not serve HTTP traffic, so exposing it through Traefik would add attack surface without adding functionality.
+`dynamic-dns-worker` is a CLI worker. It talks outbound to public IP providers and the InterNetX/AutoDNS XML API. It does not serve HTTP traffic, so exposing it through Traefik would add attack surface without adding functionality.
 
 Keep it as an internal helper service:
 
@@ -135,4 +135,4 @@ Keep it as an internal helper service:
 
 ## Compose File Scope
 
-`docker-compose.traefik-crowdsec-example.yml` is intentionally small. It shows where the DynDNS worker fits and keeps the Traefik/CrowdSec details minimal. For a production Traefik/CrowdSec stack, follow the referenced guide and migration note, then add the `internetx-dyndns` service and `.env.dns` pattern from this repository.
+`docker-compose.traefik-crowdsec-example.yml` is intentionally small. It shows where the Dynamic DNS worker fits and keeps the Traefik/CrowdSec details minimal. For a production Traefik/CrowdSec stack, follow the referenced guide and migration note, then add the `dynamic-dns-worker` service and `.env.dns` pattern from this repository.

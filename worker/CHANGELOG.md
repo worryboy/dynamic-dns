@@ -1,7 +1,13 @@
 # Changelog
 
-## 0.5.4 - Repository Structure Cleanup
+## 0.5.4 - Repository Split And Documentation Boundary Cleanup
 
+- Split the repository into `worker/`, `endpoint/`, and `spec/` product/concept areas.
+- Moved the active outbound Dynamic DNS worker runtime, Docker files, examples, and worker docs into `worker/`.
+- Added a deliberate placeholder `endpoint/` area for future inbound Dynamic DNS endpoint work without implementing endpoint runtime behavior.
+- Added a provider-neutral `spec/` area for shared Dynamic DNS behavior notes and verification design material.
+- Prepared separate version lines for worker, endpoint, and spec.
+- Updated worker docs, compose service names, workflow paths, and image naming guidance toward `dynamic-dns-worker`.
 - Moved InterNetX XML runtime templates from the repository root into `src/Provider/InterNetX/templates/`.
 - Renamed the XML templates to `zone-info.xml` and `zone-update.xml` to match their provider tasks.
 - Moved the Traefik/CrowdSec integration README to `docs/integrations/traefik-crowdsec.md`.
@@ -30,7 +36,7 @@
 - Clarified the origin chain from `martinlowinski/php-dyndns` through the small `AndLindemann/php-dyndns` correction fork to this repository.
 - Added MIT licensing and lightweight attribution documentation.
 - Documented that the original author has confirmed MIT licensing is acceptable and has added MIT licensing to the original upstream.
-- Updated provenance wording to describe this project as a substantially extended InterNetX XML DynDNS worker rather than a direct copy of the earlier script.
+- Updated provenance wording to describe this project as a substantially extended Dynamic DNS worker with InterNetX XML as the current provider/interface implementation rather than a direct copy of the earlier script.
 - Updated release references to `0.5.0`.
 
 ## 0.4.0 - Provider Interface And Traefik/CrowdSec Example
@@ -58,7 +64,7 @@
 
 ## 0.1.0 - Initial Release
 
-- Container-only InterNetX DynDNS worker.
+- Container-only Dynamic DNS worker for InterNetX XML.
 - Session-based InterNetX XML authentication with explicit session cleanup.
 - Safe `DRY_RUN`, `RUN_ONCE`, and `DEBUG` modes.
 - Configurable IPv4/IPv6 public IP detection.

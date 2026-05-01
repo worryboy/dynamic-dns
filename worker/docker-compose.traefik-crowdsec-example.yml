@@ -1,9 +1,9 @@
 services:
-  internetx-dyndns:
-    image: worryboy/internetx-dyndns:0.5.4
-    container_name: internetx-dyndns
+  dynamic-dns-worker:
+    image: worryboy/dynamic-dns-worker:0.5.4
+    container_name: dynamic-dns-worker
     # For RUN_ONCE=true, validate with:
-    # docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm internetx-dyndns
+    # docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm dynamic-dns-worker
     # This restart policy is intended for continuous RUN_ONCE=false operation.
     restart: unless-stopped
     read_only: true
@@ -29,7 +29,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     depends_on:
-      - internetx-dyndns
+      - dynamic-dns-worker
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
@@ -51,7 +51,7 @@ services:
     container_name: crowdsec
     restart: unless-stopped
     depends_on:
-      - internetx-dyndns
+      - dynamic-dns-worker
     environment:
       COLLECTIONS: crowdsecurity/traefik
     volumes:

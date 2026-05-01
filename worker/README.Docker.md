@@ -11,8 +11,8 @@ Current provider interface: InterNetX XML with `auth_session`.
 
 The worker core is separated from provider/interface code. Provider-specific configuration and limits for the current InterNetX XML support live in [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md).
 
-Source code is available on GitHub: [worryboy/internetx-dyndns](https://github.com/worryboy/internetx-dyndns)
-Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://hub.docker.com/r/worryboy/internetx-dyndns)
+Source code lives in the `worker/` product area of the Dynamic DNS repository.
+Recommended future container image name: `worryboy/dynamic-dns-worker`.
 
 ## What The Container Does
 
@@ -38,10 +38,12 @@ Future providers or future interfaces of the same provider can be added behind t
 
 ## Image Tags
 
-- `worryboy/internetx-dyndns:0.5.4` - versioned release
-- `worryboy/internetx-dyndns:latest` - latest published stable image
+- `worryboy/dynamic-dns-worker:0.5.4` - versioned release
+- `worryboy/dynamic-dns-worker:latest` - latest published stable image
 
 Use a versioned tag for repeatable deployments. Use `latest` if you want the newest published stable image.
+
+Compatibility note: older published images may still use the `worryboy/internetx-dyndns` name until the Docker publishing migration is completed.
 
 ## Create `.env` Manually
 
@@ -55,7 +57,7 @@ cp .env.example .env
 
 | File | Purpose |
 | --- | --- |
-| `.env.example` | Default example config for the normal DynDNS worker. |
+| `.env.example` | Default example config for the normal Dynamic DNS worker. |
 | `.env.dns.example` | DNS-only example config for the Traefik/CrowdSec integration example. |
 
 The separate DNS env file avoids collisions with an existing Traefik/CrowdSec stack `.env`, such as reverse-proxy, CrowdSec, certificate, or dashboard settings.
@@ -158,7 +160,7 @@ Without a persistent state directory, the worker starts each run without prior I
 Pull the image:
 
 ```bash
-docker pull worryboy/internetx-dyndns:latest
+docker pull worryboy/dynamic-dns-worker:latest
 ```
 
 Create a local `.env` file:
@@ -184,13 +186,13 @@ docker run --rm \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.5.4
+  worryboy/dynamic-dns-worker:0.5.4
 ```
 
 For Compose validation with `RUN_ONCE=true`, use:
 
 ```bash
-docker compose run --rm internetx-dyndns
+docker compose run --rm dynamic-dns-worker
 ```
 
 Do not use `docker compose up -d` for `RUN_ONCE=true` validation with the default restart policy. The worker exits cleanly after one cycle, then Docker starts it again because `restart: unless-stopped` is intended for continuous mode.
@@ -199,7 +201,7 @@ Run continuously:
 
 ```bash
 docker run -d \
-  --name internetx-dyndns \
+  --name dynamic-dns-worker \
   --restart unless-stopped \
   --read-only \
   --cap-drop ALL \
@@ -207,7 +209,7 @@ docker run -d \
   --env-file .env \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/internetx-dyndns:0.5.4
+  worryboy/dynamic-dns-worker:0.5.4
 ```
 
 Start with the Docker-Hub-oriented Compose file:
@@ -224,19 +226,19 @@ For a special one-host / many-hostname reverse-proxy scenario with Traefik and C
 By default, application logs go to `php://stdout`, so Docker captures them as normal container logs. View them with:
 
 ```bash
-docker logs -f internetx-dyndns
+docker logs -f dynamic-dns-worker
 ```
 
 or with Compose:
 
 ```bash
-docker compose logs -f internetx-dyndns
+docker compose logs -f dynamic-dns-worker
 ```
 
 Set `LOG_TARGET` only if you want the PHP logger to write somewhere else, for example a file inside the writable state mount:
 
 ```env
-LOG_TARGET=/app/state/internetx-dyndns.log
+LOG_TARGET=/app/state/dynamic-dns-worker.log
 ```
 
 Set `TZ` to make runtime timestamps match your local operations timezone:
@@ -294,7 +296,7 @@ In dry-run mode, the worker may:
 - log what would happen
 
 It never sends a live DNS mutation while `DRY_RUN=true`.
-With `RUN_ONCE=true`, prefer `docker compose run --rm internetx-dyndns`.
+With `RUN_ONCE=true`, prefer `docker compose run --rm dynamic-dns-worker`.
 
 For normal long-running updates, switch to:
 
@@ -374,6 +376,10 @@ An unchanged detected public IP does not automatically mean nothing needs to hap
 
 Repository cleanup release:
 
+- split the repository into `worker/`, `endpoint/`, and `spec/`
+- moved the active worker runtime, Docker files, examples, and worker docs into `worker/`
+- prepared separate version lines for worker, endpoint, and spec
+- updated worker service/image naming guidance toward `dynamic-dns-worker`
 - moved InterNetX XML runtime templates into the provider implementation tree
 - moved the Traefik/CrowdSec integration README under `docs/integrations/`
 - removed an unused root `robots.txt`
@@ -419,7 +425,7 @@ Example and documentation release:
 
 Feature release:
 
-- container-only InterNetX DynDNS worker
+- container-only Dynamic DNS worker for InterNetX XML
 - session-based InterNetX XML authentication
 - explicit session cleanup
 - safe dry-run mode
@@ -432,6 +438,6 @@ Feature release:
 
 ## Provenance
 
-This repository descends from [`martinlowinski/php-dyndns`](https://github.com/martinlowinski/php-dyndns) through the small correction fork [`AndLindemann/php-dyndns`](https://github.com/AndLindemann/php-dyndns). The current repository has since been substantially extended and reworked for the container-oriented InterNetX XML worker model.
+This repository descends from [`martinlowinski/php-dyndns`](https://github.com/martinlowinski/php-dyndns) through the small correction fork [`AndLindemann/php-dyndns`](https://github.com/AndLindemann/php-dyndns). The current repository has since been substantially extended and reworked for a provider-oriented Dynamic DNS worker model, with InterNetX XML as the current provider/interface implementation.
 
 See [ATTRIBUTION.md](ATTRIBUTION.md) for the concise attribution chain and [LICENSE](LICENSE) for the MIT license.

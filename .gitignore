@@ -1,7 +1,11 @@
 .env
 .env.dns
+worker/.env
+worker/.env.dns
 state/*
+worker/state/*
 !state/.gitkeep
+!worker/state/.gitkeep
 *.log
 logs/
 tmp/

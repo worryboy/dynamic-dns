@@ -2,8 +2,8 @@ FROM php:8.3-cli-alpine3.22
 
 ARG APP_VERSION=0.5.4
 
-LABEL org.opencontainers.image.title="InterNetX DynDNS" \
-      org.opencontainers.image.description="Container-only InterNetX XML API DynDNS worker" \
+LABEL org.opencontainers.image.title="Dynamic DNS Worker" \
+      org.opencontainers.image.description="Provider-oriented Dynamic DNS worker" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.vendor="worryboy"
 

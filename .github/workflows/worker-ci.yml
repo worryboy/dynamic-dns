@@ -1,0 +1,53 @@
+name: Worker CI
+
+on:
+  pull_request:
+    paths:
+      - worker/**
+      - .github/workflows/docker-release.yml
+      - .github/workflows/dockerhub-description.yml
+      - .github/workflows/worker-ci.yml
+  push:
+    branches:
+      - main
+    paths:
+      - worker/**
+      - .github/workflows/docker-release.yml
+      - .github/workflows/dockerhub-description.yml
+      - .github/workflows/worker-ci.yml
+
+jobs:
+  worker:
+    name: Validate Worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate worker version format
+        run: |
+          VERSION="$(cat worker/VERSION)"
+
+          if ! printf '%s\n' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "worker/VERSION must use X.Y.Z format, got: $VERSION" >&2
+            exit 1
+          fi
+
+      - name: Validate worker Compose files
+        working-directory: worker
+        run: |
+          cp .env.example .env
+          cp .env.dns.example .env.dns
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.hub.yml config --quiet
+          docker compose -f docker-compose.traefik-crowdsec-example.yml config --quiet
+
+      - name: Build worker image
+        run: |
+          VERSION="$(cat worker/VERSION)"
+          docker build --build-arg APP_VERSION="$VERSION" -t dynamic-dns-worker:ci worker
+
+      - name: Lint PHP inside worker image
+        run: |
+          docker run --rm --entrypoint sh dynamic-dns-worker:ci -c 'find /app -name "*.php" -print0 | xargs -0 -n1 php -l'
