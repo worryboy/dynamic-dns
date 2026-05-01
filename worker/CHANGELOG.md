@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.5 - Repository Rename And Worker Image Transition
+
+- Prepared the worker release line for `worker-v0.5.5`.
+- Updated release-facing worker references to `0.5.5`.
+- Confirmed the official worker Docker image name as `worryboy/dynamic-dns-worker`.
+- Marked the old provider-specific `worryboy/internetx-dyndns` image name as deprecated compatibility/provenance wording.
+
 ## 0.5.4 - Repository Split And Documentation Boundary Cleanup
 
 - Split the repository into `worker/`, `endpoint/`, and `spec/` product/concept areas.

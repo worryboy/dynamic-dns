@@ -21,7 +21,7 @@ Recommended naming direction:
 - Endpoint product: `dynamic-dns-endpoint`
 - Behavior/spec space: `dynamic-dns-spec`
 
-The older `internetx-dyndns` naming may remain in compatibility references, existing Docker image names, historical release notes, and attribution history until a migration/release plan replaces them.
+The older `internetx-dyndns` naming is deprecated. It may remain only in compatibility references, historical release notes, and attribution/provenance history.
 
 ## Current Worker
 
@@ -80,11 +80,11 @@ Recommended topics:
 dynamic-dns, dyndns, dns, dns-updater, docker, php, worker, provider-interface, autodns, internetx
 ```
 
-Image naming direction:
+Image naming:
 
-- New worker image: `dynamic-dns-worker`
+- Official worker image: `worryboy/dynamic-dns-worker`
 - Future endpoint image: `dynamic-dns-endpoint`
-- Existing image names such as `worryboy/internetx-dyndns` should be treated as compatibility tags until a publishing migration is defined.
+- Existing image names such as `worryboy/internetx-dyndns` are deprecated compatibility references. New deployments should use `worryboy/dynamic-dns-worker`.
 
 ## Versioning
 
@@ -96,11 +96,18 @@ Each product area has its own version line:
 
 Recommended release tag prefixes:
 
-- `worker-v0.5.4`
+- `worker-v0.5.5`
 - `endpoint-v0.1.0`
 - `spec-v0.1.0`
 
 Do not assume a worker release implies an endpoint or spec release.
+
+Worker release:
+
+```bash
+git tag worker-v0.5.5
+git push origin worker-v0.5.5
+```
 
 ## License And Attribution
 

@@ -4,7 +4,7 @@ Containerized provider-oriented Dynamic DNS worker for IPv4/IPv6-aware DNS updat
 
 This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the current DNS provider interface when the address changes.
 
-Current release: `0.5.4`
+Current release: `0.5.5`
 
 Current provider implementation: InterNetX / AutoDNS / SchlundTech-related DNS.
 Current provider interface: InterNetX XML with `auth_session`.
@@ -12,7 +12,7 @@ Current provider interface: InterNetX XML with `auth_session`.
 The worker core is separated from provider/interface code. Provider-specific configuration and limits for the current InterNetX XML support live in [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md).
 
 Source code lives in the `worker/` product area of the Dynamic DNS repository.
-Recommended future container image name: `worryboy/dynamic-dns-worker`.
+Official container image name: `worryboy/dynamic-dns-worker`.
 
 ## What The Container Does
 
@@ -38,12 +38,20 @@ Future providers or future interfaces of the same provider can be added behind t
 
 ## Image Tags
 
-- `worryboy/dynamic-dns-worker:0.5.4` - versioned release
+- `worryboy/dynamic-dns-worker:0.5.5` - versioned release
 - `worryboy/dynamic-dns-worker:latest` - latest published stable image
 
 Use a versioned tag for repeatable deployments. Use `latest` if you want the newest published stable image.
 
-Compatibility note: older published images may still use the `worryboy/internetx-dyndns` name until the Docker publishing migration is completed.
+Deprecated image name: `worryboy/internetx-dyndns`.
+
+The old provider-specific image name is retained only as a deprecated compatibility/provenance reference. New deployments should use `worryboy/dynamic-dns-worker`.
+
+Recommended deprecation text for the old Docker Hub repository:
+
+```text
+Deprecated: this image has moved to worryboy/dynamic-dns-worker. Please update new deployments to use worryboy/dynamic-dns-worker:<version> or worryboy/dynamic-dns-worker:latest. The old worryboy/internetx-dyndns name is retained only for compatibility/provenance.
+```
 
 ## Create `.env` Manually
 
@@ -186,7 +194,7 @@ docker run --rm \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/dynamic-dns-worker:0.5.4
+  worryboy/dynamic-dns-worker:0.5.5
 ```
 
 For Compose validation with `RUN_ONCE=true`, use:
@@ -209,7 +217,7 @@ docker run -d \
   --env-file .env \
   --tmpfs /tmp \
   -v "$(pwd)/state:/app/state" \
-  worryboy/dynamic-dns-worker:0.5.4
+  worryboy/dynamic-dns-worker:0.5.5
 ```
 
 Start with the Docker-Hub-oriented Compose file:
@@ -371,6 +379,15 @@ An unchanged detected public IP does not automatically mean nothing needs to hap
 - Some vulnerability scanner findings may still be inherited from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine runtime packages. Those are usually resolved by rebuilding on newer upstream base releases when fixes land there.
 
 ## Release Notes
+
+### 0.5.5
+
+Repository rename and worker image transition release:
+
+- prepared the worker release line for `worker-v0.5.5`
+- confirmed `worryboy/dynamic-dns-worker` as the official worker Docker image
+- marked `worryboy/internetx-dyndns` as a deprecated compatibility/provenance image name
+- refreshed release-facing Docker examples for `0.5.5`
 
 ### 0.5.4
 

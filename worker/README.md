@@ -11,7 +11,7 @@ Current implementation:
 - Auth model: XML `auth_session`
 
 Source code lives in the `worker/` product area of the Dynamic DNS repository.
-Recommended future container image name: `worryboy/dynamic-dns-worker`.
+Official container image name: `worryboy/dynamic-dns-worker`.
 
 ## Documentation Map
 
@@ -402,10 +402,27 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine3.22`
 - app image: `dynamic-dns-worker:local`
-- release image: `worryboy/dynamic-dns-worker:0.5.4`
+- release image: `worryboy/dynamic-dns-worker:0.5.5`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`
+
+## Worker Release Flow
+
+Worker releases are tag-driven. The release workflow expects:
+
+- tag: `worker-v0.5.5`
+- version source: [`VERSION`](VERSION)
+- build context: `./worker`
+- Dockerfile: `./worker/Dockerfile`
+- Docker image: `worryboy/dynamic-dns-worker`
+
+Release the worker with:
+
+```bash
+git tag worker-v0.5.5
+git push origin worker-v0.5.5
+```
 
 Image hardening notes:
 
