@@ -51,7 +51,9 @@ All built-in HTTPS requests keep TLS peer and host verification enabled. This ap
 ## Assumptions And Limits
 
 - The worker updates existing `A` and `AAAA` records; it does not create missing records.
-- The XML templates `request-get.xml` and `request-put.xml` are still used for ZoneInfo and ZoneUpdate.
+- Runtime XML templates live with the provider implementation under `src/Provider/InterNetX/templates/`.
+- `zone-info.xml` is the InterNetX XML ZoneInfo task `0205` template.
+- `zone-update.xml` is the InterNetX XML ZoneUpdate task `0202` template.
 - `DRY_RUN=true` permits read-only provider validation but blocks live mutation.
 - The session hash is kept only in memory and is redacted in debug logs.
 - `DEBUG=true` logs sanitized XML request and response payloads for provider calls; passwords, usernames, and session hashes are redacted.

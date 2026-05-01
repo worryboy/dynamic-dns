@@ -341,8 +341,8 @@ The read-only access validation uses InterNetX ZoneInfo task `0205`. It can conf
 
 The worker uses:
 
-- `request-get.xml` with task code `0205` for zone inquiry
-- `request-put.xml` with task code `0202` for zone update
+- provider template `src/Provider/InterNetX/templates/zone-info.xml` with task code `0205` for zone inquiry
+- provider template `src/Provider/InterNetX/templates/zone-update.xml` with task code `0202` for zone update
 - `AuthSessionCreate` with task code `1321001` to create a session from `user`, `password`, and `context`
 - `<auth_session><hash>...</hash></auth_session>` for follow-up zone inquiry and update calls
 - `AuthSessionDelete` with task code `1321003` to close the session
@@ -386,7 +386,7 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine3.22`
 - app image: `internetx-dyndns:local`
-- release image: `worryboy/internetx-dyndns:0.5.2`
+- release image: `worryboy/internetx-dyndns:0.5.4`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`
@@ -441,8 +441,10 @@ newgrp docker
 - [`src/Provider/DnsProvider.php`](src/Provider/DnsProvider.php)
 - [`src/Provider/InterNetX/InterNetXXmlProvider.php`](src/Provider/InterNetX/InterNetXXmlProvider.php)
 - [`src/Provider/InterNetX/InterNetXXmlGatewayClient.php`](src/Provider/InterNetX/InterNetXXmlGatewayClient.php)
+- [`docs/README.md`](docs/README.md)
 - [`docs/providers/internetx-xml.md`](docs/providers/internetx-xml.md)
 - [`docs/design/verification.md`](docs/design/verification.md)
+- [`docs/integrations/traefik-crowdsec.md`](docs/integrations/traefik-crowdsec.md)
 - [`.env.example`](.env.example)
 - [`docker-compose.yml`](docker-compose.yml)
 - [`Dockerfile`](Dockerfile)
