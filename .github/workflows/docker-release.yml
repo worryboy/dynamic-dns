@@ -1,4 +1,4 @@
-name: Docker Release
+name: Worker Docker Release
 
 on:
   push:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   release:
-    name: Build, Publish, and Release
+    name: Build, Publish, and Release Worker
     runs-on: ubuntu-latest
     environment: dockerhub
 
@@ -48,6 +48,24 @@ jobs:
         with:
           ref: ${{ steps.version.outputs.tag }}
 
+      - name: Validate worker version
+        run: |
+          WORKER_VERSION="$(cat worker/VERSION)"
+
+          if [ "$WORKER_VERSION" != "${{ steps.version.outputs.version }}" ]; then
+            echo "worker/VERSION ($WORKER_VERSION) does not match tag version (${{ steps.version.outputs.version }})" >&2
+            exit 1
+          fi
+
+      - name: Validate worker Compose files
+        working-directory: worker
+        run: |
+          cp .env.example .env
+          cp .env.dns.example .env.dns
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.hub.yml config --quiet
+          docker compose -f docker-compose.traefik-crowdsec-example.yml config --quiet
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -61,6 +79,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./worker
+          file: ./worker/Dockerfile
           push: true
           build-args: |
             APP_VERSION=${{ steps.version.outputs.version }}
