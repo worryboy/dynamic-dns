@@ -1,6 +1,6 @@
 services:
   dynamic-dns-worker:
-    image: worryboy/dynamic-dns-worker:0.5.4
+    image: worryboy/dynamic-dns-worker:0.5.5
     container_name: dynamic-dns-worker
     # For RUN_ONCE=true, validate with:
     # docker compose -f docker-compose.traefik-crowdsec-example.yml run --rm dynamic-dns-worker

@@ -1,6 +1,6 @@
 FROM php:8.3-cli-alpine3.22
 
-ARG APP_VERSION=0.5.4
+ARG APP_VERSION=0.5.5
 
 LABEL org.opencontainers.image.title="Dynamic DNS Worker" \
       org.opencontainers.image.description="Provider-oriented Dynamic DNS worker" \
