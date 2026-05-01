@@ -189,6 +189,7 @@ Before running live updates, check the zone for every configured target:
 | `INTERNETX_SYSTEM_NS` | optional runtime/debug | No | Optional zone inquiry selector for the first system-managed nameserver. Usually unset. | `ns1.routing.net` |
 | `STATE_DIR` | optional runtime/debug | No | Directory for persisted `last_ipv4` and `last_ipv6` values. | `/app/state` |
 | `CHECK_INTERVAL_SECONDS` | optional runtime/debug | No | Sleep interval for continuous container mode. Ignored when `RUN_ONCE=true`. | `300` |
+| `TZ` | optional operability | No | Runtime timezone for application logs, `ip-status.log`, and `health.json` timestamps. | `Europe/Zurich` |
 | `IP_STATUS_LOG` | optional operability | No | Optional JSON-lines history file for detected IP status after successful cycles. Disabled when unset. | `/app/state/ip-status.log` |
 | `HEALTH_STATUS_FILE` | optional operability | No | JSON status file used by the Docker healthcheck. Defaults to `STATE_DIR/health.json`. | `/app/state/health.json` |
 | `HEALTH_MAX_AGE_SECONDS` | optional operability | No | Maximum age accepted by the healthcheck for the last successful cycle. Defaults to about three check intervals plus one minute. | `960` |
@@ -210,6 +211,8 @@ docker compose logs -f internetx-dyndns
 ```
 
 Set `LOG_TARGET` only if you want logs written somewhere else, such as `/app/state/internetx-dyndns.log`.
+
+Set `TZ`, for example `TZ=Europe/Zurich`, to use the same runtime timezone for application logs, `ip-status.log`, and `health.json`. Timestamps stay ISO 8601 with an offset.
 
 The worker writes a health status file after each cycle, defaulting to `STATE_DIR/health.json`. Docker healthchecks use that file to verify that the last cycle succeeded and is recent. Set `IP_STATUS_LOG=/app/state/ip-status.log` if you also want an optional JSON-lines history of IPv4/IPv6 status values.
 
@@ -396,17 +399,35 @@ Image hardening notes:
 - some scanner findings may still come from the upstream official `php:8.3-cli-alpine3.22` base image and Alpine base packages such as `tar`, `libcurl`, or `nghttp2`
 - those inherited findings are reduced by rebuilding on newer upstream PHP/Alpine base releases when they become available
 
-## macOS Without Docker Desktop
-
 Docker Desktop is not required. Any Docker-compatible backend that supports the Docker CLI and Compose can run the worker.
 
-Colima is one valid option on macOS:
+## macOS Without Docker Desktop
 
+Colima is one valid option on macOS:
 ```bash
 brew install colima docker docker-compose
 colima start
 docker version
 docker compose version
+```
+
+## Linux (Debian/Ubuntu) Without Docker Desktop
+
+Docker Desktop is not required on Linux. A standard Docker Engine + Docker Compose setup is sufficient.
+Example on Debian/Ubuntu:
+
+```bash
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin git
+sudo systemctl enable --now docker
+docker version
+docker compose version
+```
+
+Optional: allow the current user to run Docker without sudo: (change $USER)
+```bash
+sudo usermod -aG docker "$USER"
+newgrp docker
 ```
 
 ## Files Of Interest

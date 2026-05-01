@@ -239,6 +239,14 @@ Set `LOG_TARGET` only if you want the PHP logger to write somewhere else, for ex
 LOG_TARGET=/app/state/internetx-dyndns.log
 ```
 
+Set `TZ` to make runtime timestamps match your local operations timezone:
+
+```env
+TZ=Europe/Zurich
+```
+
+Application logs, `ip-status.log`, and `health.json` all use the same ISO 8601 timestamp format with offset.
+
 The container healthcheck reads a small JSON status file. By default, the worker writes it to `/app/state/health.json` after each cycle. A healthy result means the last cycle succeeded and is recent enough for the configured check interval. A failing result means the last cycle failed, the status file is missing, or the last success is stale.
 
 The image includes this healthcheck:

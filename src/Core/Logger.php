@@ -42,7 +42,7 @@ final class Logger
         $levelLabel = $this->formatLevel($level);
         $line = sprintf(
             "[%s] %s %s%s\n",
-            gmdate('c'),
+            Clock::nowIso8601(),
             $levelLabel,
             $message,
             $this->formatContext($context)
