@@ -3,6 +3,8 @@
 Current provider: InterNetX / AutoDNS / SchlundTech-related DNS service.
 Current interface: XML.
 
+This is the first concrete provider/interface implementation behind the generic worker core. For the general provider-extension pattern, see [Adding A Provider](../development/adding-a-provider.md).
+
 The worker uses the XML `auth_session` flow:
 
 - create a session with username, password, and context
