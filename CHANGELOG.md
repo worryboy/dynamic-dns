@@ -6,6 +6,8 @@
 - Renamed the XML templates to `zone-info.xml` and `zone-update.xml` to match their provider tasks.
 - Moved the Traefik/CrowdSec integration README to `docs/integrations/traefik-crowdsec.md`.
 - Removed unused root `robots.txt`.
+- Refactored docs to present the generic Dynamic DNS worker separately from the current InterNetX XML provider implementation.
+- Added provider-extension documentation for future provider/interface implementations.
 - Updated documentation links and release references to `0.5.4`.
 
 ## 0.5.2 - Operability Logging And Healthcheck

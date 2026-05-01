@@ -1,16 +1,25 @@
-# InterNetX DynDNS
+# Dynamic DNS Worker
 
-`InterNetX DynDNS` is a containerized PHP worker that keeps one explicitly configured DNS host in sync with the current public IP address of the machine or network running the container.
+`internetx-dyndns` is a containerized, provider-oriented Dynamic DNS worker. It keeps one or more explicitly configured DNS hostnames in sync with the current public IP address of the machine or network running the container.
 
-Current provider: InterNetX / AutoDNS / SchlundTech-related DNS.
-Current interface: InterNetX XML.
+The worker core handles public IP detection, target parsing, state, update decisions, dry-run behavior, notifications, logging, and health output. DNS-provider API details sit behind a provider/interface layer.
 
-The default live XML API endpoint remains `https://gateway.autodns.com`. Runtime API calls use the XML `auth_session` flow: create a session, reuse its hash for this run, then close it.
+Current implementation:
 
-The generic worker flow is separated from the DNS provider/interface implementation. Provider-specific details for the current InterNetX XML support are documented in [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md). Future providers, or a future InterNetX interface such as JSON, can be added behind the provider layer without rewriting the worker core.
+- Provider: InterNetX / AutoDNS / SchlundTech-related DNS
+- Interface: InterNetX XML
+- Auth model: XML `auth_session`
 
 Source code is available on GitHub: [worryboy/internetx-dyndns](https://github.com/worryboy/internetx-dyndns)
 Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://hub.docker.com/r/worryboy/internetx-dyndns)
+
+## Documentation Map
+
+- Provider-specific InterNetX XML details: [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md)
+- Docker runtime and image details: [README.Docker.md](README.Docker.md)
+- Traefik/CrowdSec integration example: [docs/integrations/traefik-crowdsec.md](docs/integrations/traefik-crowdsec.md)
+- Provider-extension guide: [docs/development/adding-a-provider.md](docs/development/adding-a-provider.md)
+- Verification design notes: [docs/design/verification.md](docs/design/verification.md)
 
 ## What It Does
 
@@ -18,13 +27,21 @@ Container image is available on Docker Hub: [worryboy/internetx-dyndns](https://
 - detects the current public IPv4 address
 - optionally detects the current public IPv6 address
 - reads one configured `TARGET_HOST` or multiple `TARGET_HOSTS`
-- creates an InterNetX XML AuthSession before provider validation
-- fetches the current InterNetX zone data with a non-mutating zone inquiry
+- opens the configured DNS provider/interface session or equivalent auth flow
+- fetches current provider-side DNS state with a non-mutating lookup
 - updates existing `A` and optional `AAAA` records only when the detected IP changed for each configured target
-- closes the InterNetX XML AuthSession at the end of the run
+- closes the provider session or equivalent auth flow at the end of the run
 - stores last successful IP values in a persistent state directory
 - supports `DRY_RUN=true` for safe local validation before any live update
 - logs diagnostics without logging passwords or secret credentials
+
+## Current Provider Implementation
+
+The currently implemented provider/interface is InterNetX XML for InterNetX / AutoDNS / SchlundTech-related environments.
+
+The default live XML API endpoint is `https://gateway.autodns.com`. Runtime API calls use the XML `auth_session` flow: create a session, reuse its hash for this run, then close it.
+
+Provider-specific configuration, XML task details, assumptions, and limits are documented in [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md). Future providers, or a future InterNetX interface such as JSON, should be added behind the provider layer described in [docs/development/adding-a-provider.md](docs/development/adding-a-provider.md).
 
 ## Configuration
 
@@ -197,10 +214,7 @@ Before running live updates, check the zone for every configured target:
 | `HTTP_REQUEST_TIMEOUT` | optional runtime/debug | No | Total HTTP request timeout for IP and XML requests. | `20` |
 | `LOG_TARGET` | optional runtime/debug | No | PHP stream or file path for logs. | `php://stdout` |
 
-`INTERNETX_*` settings are provider-specific for the current InterNetX XML interface. `INTERNETX_SYSTEM_NS` is not part of XML authentication and is not required for the normal update path. InterNetX documents `system_ns` on the Zone object as the first system-managed nameserver, and ZoneInfo examples may include it. If set, this worker sends it as `<system_ns>` in the read-only ZoneInfo request. Normal DynDNS users usually leave it unset.
-
-There are no optional advanced authentication settings in the current worker. Credentials are used for `AuthSessionCreate` and `AuthSessionDelete`; zone inquiry and update requests use `<auth_session><hash>...</hash></auth_session>`.
-See [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md) for the provider-specific InterNetX XML configuration notes.
+`INTERNETX_*` settings are provider-specific for the current InterNetX XML interface. See [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md) for auth, context, XML templates, `INTERNETX_SYSTEM_NS`, and current provider limitations.
 
 ## Logs And Health
 
@@ -339,7 +353,7 @@ The read-only access validation uses InterNetX ZoneInfo task `0205`. It can conf
 
 ## InterNetX XML API
 
-The worker uses:
+The current InterNetX XML provider uses:
 
 - provider template `src/Provider/InterNetX/templates/zone-info.xml` with task code `0205` for zone inquiry
 - provider template `src/Provider/InterNetX/templates/zone-update.xml` with task code `0202` for zone update
@@ -350,6 +364,8 @@ The worker uses:
 The session hash is treated as a secret. It is kept only in memory, never persisted, and redacted in sanitized XML debug logs. Short masked display such as `9b4b...73dd` may appear in operational logs.
 
 The updater does not create missing DNS records. If IPv4 is enabled and detected, the target `A` record must already exist. If IPv6 is enabled and detected, the target `AAAA` record must already exist too.
+
+For the full provider-specific notes, see [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md).
 
 ## Verification Direction
 
@@ -443,6 +459,7 @@ newgrp docker
 - [`src/Provider/InterNetX/InterNetXXmlGatewayClient.php`](src/Provider/InterNetX/InterNetXXmlGatewayClient.php)
 - [`docs/README.md`](docs/README.md)
 - [`docs/providers/internetx-xml.md`](docs/providers/internetx-xml.md)
+- [`docs/development/adding-a-provider.md`](docs/development/adding-a-provider.md)
 - [`docs/design/verification.md`](docs/design/verification.md)
 - [`docs/integrations/traefik-crowdsec.md`](docs/integrations/traefik-crowdsec.md)
 - [`.env.example`](.env.example)

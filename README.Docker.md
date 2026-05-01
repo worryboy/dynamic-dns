@@ -1,13 +1,13 @@
-# InterNetX DynDNS Docker Image
+# Dynamic DNS Worker Docker Image
 
-Containerized InterNetX DynDNS worker for IPv4/IPv6-aware DNS updates.
+Containerized provider-oriented Dynamic DNS worker for IPv4/IPv6-aware DNS updates.
 
 This image runs as a long-lived outbound-only worker. It detects the current public IPv4 and/or IPv6 address once per cycle, validates one configured `TARGET_HOST` or multiple `TARGET_HOSTS`, and updates existing `A` and `AAAA` records through the current DNS provider interface when the address changes.
 
 Current release: `0.5.4`
 
-Current provider: InterNetX / AutoDNS / SchlundTech-related DNS.
-Current interface: InterNetX XML with `auth_session`.
+Current provider implementation: InterNetX / AutoDNS / SchlundTech-related DNS.
+Current provider interface: InterNetX XML with `auth_session`.
 
 The worker core is separated from provider/interface code. Provider-specific configuration and limits for the current InterNetX XML support live in [docs/providers/internetx-xml.md](docs/providers/internetx-xml.md).
 
