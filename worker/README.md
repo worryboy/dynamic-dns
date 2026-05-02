@@ -2,6 +2,8 @@
 
 `dynamic-dns-worker` is a containerized, provider-oriented Dynamic DNS worker. It keeps one or more explicitly configured DNS hostnames in sync with the current public IP address of the machine or network running the container.
 
+This image is a provider-integrated Dynamic DNS worker. It detects public IPs itself, keeps state, validates configured targets against the DNS provider, and performs provider-side updates as needed. It is not a simple URL-calling DynDNS client.
+
 The worker core handles public IP detection, target parsing, state, update decisions, dry-run behavior, notifications, logging, and health output. DNS-provider API details sit behind a provider/interface layer.
 
 Current implementation:
@@ -34,6 +36,13 @@ Official container image name: `worryboy/dynamic-dns-worker`.
 - stores last successful IP values in a persistent state directory
 - supports `DRY_RUN=true` for safe local validation before any live update
 - logs diagnostics without logging passwords or secret credentials
+
+## Worker, Client, Endpoint, Spec
+
+- Worker: provider-integrated runtime that detects public IPs, stores state, validates configured targets against the DNS provider, and updates provider-side records.
+- Client: future URL-based update client / callback-style updater that calls an update URL. It is not implemented yet.
+- Endpoint: future inbound server-side endpoint that receives update requests from clients and maps them to provider updates. It is not implemented yet.
+- Spec: shared Dynamic DNS behavior, contracts, scenarios, and verification notes.
 
 ## Current Provider Implementation
 
@@ -402,7 +411,7 @@ Container layout:
 
 - base image: `php:8.3-cli-alpine3.22`
 - app image: `dynamic-dns-worker:local`
-- release image: `worryboy/dynamic-dns-worker:0.5.5`
+- release image: `worryboy/dynamic-dns-worker:0.5.6`
 - worker entry point: [`docker/start.sh`](docker/start.sh)
 - CLI entry point: [`bin/dyndns.php`](bin/dyndns.php)
 - persistent state mount: `./state:/app/state`
@@ -411,7 +420,7 @@ Container layout:
 
 Worker releases are tag-driven. The release workflow expects:
 
-- tag: `worker-v0.5.5`
+- tag: `worker-v0.5.6`
 - version source: [`VERSION`](VERSION)
 - build context: `./worker`
 - Dockerfile: `./worker/Dockerfile`
@@ -420,8 +429,8 @@ Worker releases are tag-driven. The release workflow expects:
 Release the worker with:
 
 ```bash
-git tag worker-v0.5.5
-git push origin worker-v0.5.5
+git tag worker-v0.5.6
+git push origin worker-v0.5.6
 ```
 
 Image hardening notes:
@@ -489,4 +498,4 @@ This repository descends from [`martinlowinski/php-dyndns`](https://github.com/m
 
 Modern additions in this repository include XML `auth_session` handling, dry-run validation, multi-target updates, no-change policy, Pushover notifications, provider/interface separation, Docker packaging, and Traefik/CrowdSec example documentation.
 
-The original author has confirmed that MIT licensing is acceptable and has added MIT licensing to the original upstream. This repository includes an MIT [LICENSE](LICENSE) and a concise [ATTRIBUTION.md](ATTRIBUTION.md).
+The original author has confirmed that MIT licensing is acceptable and has added MIT licensing to the original upstream. This repository includes an MIT [LICENSE](../LICENSE) and a concise [ATTRIBUTION.md](../ATTRIBUTION.md).

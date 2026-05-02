@@ -6,7 +6,7 @@ The endpoint is not implemented yet. This directory exists to keep endpoint conc
 
 ## Intended Shape
 
-The endpoint would be an inbound service that receives Dynamic DNS update requests from clients such as routers, scripts, or other automation.
+The endpoint would be an inbound server-side service that receives Dynamic DNS update requests from clients such as routers, scripts, the future `dynamic-dns-client`, or other automation.
 
 Possible future concerns:
 
@@ -23,7 +23,6 @@ No endpoint behavior is currently promised by the worker.
 
 Endpoint-style assumptions should live here, not in the worker docs or runtime:
 
-- router-calls-update-URL workflows
 - `update.php`-style scripts
 - query parameters such as `ipaddr`, `ip6addr`, `domain`, or `pass`
 - inbound HTTP routing or exposed ports
