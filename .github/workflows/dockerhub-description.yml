@@ -25,4 +25,4 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: worryboy/dynamic-dns-worker
           readme-filepath: ./worker/README.Docker.md
-          short-description: Provider-oriented Dynamic DNS worker for IPv4/IPv6-aware DNS updates.
+          short-description: Provider-integrated Dynamic DNS worker for IPv4/IPv6 DNS updates.

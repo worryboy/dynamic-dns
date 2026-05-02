@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.6 - Public Documentation And Product Structure Cleanup
+
+- Prepared the worker release line for `worker-v0.5.6`.
+- Shortened and clarified Docker Hub-facing documentation.
+- Added prominent worker-vs-client-vs-endpoint product model wording.
+- Introduced `dynamic-dns-client` as a placeholder concept without implementing client runtime behavior.
+- Refreshed release-facing worker image examples to `worryboy/dynamic-dns-worker:0.5.6`.
+
 ## 0.5.5 - Repository Rename And Worker Image Transition
 
 - Prepared the worker release line for `worker-v0.5.5`.
