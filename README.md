@@ -128,7 +128,10 @@ Each product area has its own version line:
 Recommended release tag prefixes:
 
 - `worker-v0.5.6`
+<<<<<<< HEAD
 - `client-v0.1.0`
+=======
+>>>>>>> 2776582 (Normalize worker release line and prepare v0.5.6)
 - `endpoint-v0.1.0`
 - `spec-v0.1.0`
 

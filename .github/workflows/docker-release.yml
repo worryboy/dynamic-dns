@@ -47,6 +47,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.version.outputs.tag }}
+          fetch-depth: 0
 
       - name: Validate worker version
         run: |
@@ -65,6 +66,33 @@ jobs:
           docker compose -f docker-compose.yml config --quiet
           docker compose -f docker-compose.hub.yml config --quiet
           docker compose -f docker-compose.traefik-crowdsec-example.yml config --quiet
+
+      - name: Prepare GitHub release notes
+        id: release_notes
+        run: |
+          CURRENT_TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          PREVIOUS_TAG="$(git tag --list 'worker-v*' --sort=-version:refname | grep -F -x -v "$CURRENT_TAG" | head -n 1 || true)"
+
+          {
+            echo "# dynamic-dns-worker v${VERSION}"
+            echo
+            echo "Worker release for the provider-integrated Dynamic DNS runtime."
+            echo
+            echo "- Version source: \`worker/VERSION\`"
+            echo "- Docker image: \`worryboy/dynamic-dns-worker:${VERSION}\`"
+            echo "- Release tag: \`${CURRENT_TAG}\`"
+            echo "- Release line: \`worker-v*\`"
+            echo
+
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "**Full worker-line changelog**: https://github.com/worryboy/dynamic-dns/compare/${PREVIOUS_TAG}...${CURRENT_TAG}"
+            else
+              echo "This is the first worker-specific release tag."
+            fi
+          } > worker-release-notes.md
+
+          echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -91,4 +119,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
+          name: dynamic-dns-worker v${{ steps.version.outputs.version }}
+          body_path: worker-release-notes.md
+          make_latest: true

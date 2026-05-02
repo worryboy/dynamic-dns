@@ -1,5 +1,6 @@
 # Changelog
 
+<<<<<<< HEAD
 ## 0.5.6 - Public Documentation And Product Structure Cleanup
 
 - Prepared the worker release line for `worker-v0.5.6`.
@@ -7,6 +8,14 @@
 - Added prominent worker-vs-client-vs-endpoint product model wording.
 - Introduced `dynamic-dns-client` as a placeholder concept without implementing client runtime behavior.
 - Refreshed release-facing worker image examples to `worryboy/dynamic-dns-worker:0.5.6`.
+=======
+## 0.5.6 - Release Line Normalization
+
+- Prepared the worker release line for `worker-v0.5.6`.
+- Updated the GitHub release workflow to create worker-named releases such as `dynamic-dns-worker v0.5.6`.
+- Replaced inferred GitHub release notes with an explicit worker-line release body and `worker-v*` compare link.
+- Kept legacy global `v*` releases as pre-split history rather than continuing that release line.
+>>>>>>> 2776582 (Normalize worker release line and prepare v0.5.6)
 
 ## 0.5.5 - Repository Rename And Worker Image Transition
 
