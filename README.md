@@ -81,34 +81,6 @@ The spec area is for behavior that should be shared across worker, client, and e
 
 See [spec/README.md](spec/README.md).
 
-## Repository Metadata Suggestions
-
-Recommended repository name: `dynamic-dns`
-
-Recommended GitHub description:
-
-```text
-Provider-neutral Dynamic DNS toolkit with an active provider-integrated worker, future client and endpoint areas, and shared specs.
-```
-
-Recommended topics:
-
-```text
-dynamic-dns, dyndns, dns, dns-updater, docker, php, worker, client, endpoint, provider-interface, autodns, internetx
-```
-
-Recommended Docker Hub short description for `worryboy/dynamic-dns-worker`:
-
-```text
-Provider-integrated Dynamic DNS worker for IPv4/IPv6 DNS updates.
-```
-
-Recommended deprecation text for the old `worryboy/internetx-dyndns` image:
-
-```text
-Deprecated: this image has moved to worryboy/dynamic-dns-worker. Please update new deployments to use worryboy/dynamic-dns-worker:<version> or worryboy/dynamic-dns-worker:latest.
-```
-
 Image naming:
 
 - Official worker image: `worryboy/dynamic-dns-worker`
@@ -125,24 +97,13 @@ Each product area has its own version line:
 - Endpoint: [endpoint/VERSION](endpoint/VERSION)
 - Spec: [spec/VERSION](spec/VERSION)
 
-Recommended release tag prefixes:
+release tag prefixes:
 
 - `worker-v0.5.6`
-<<<<<<< HEAD
-- `client-v0.1.0`
-=======
->>>>>>> 2776582 (Normalize worker release line and prepare v0.5.6)
 - `endpoint-v0.1.0`
 - `spec-v0.1.0`
 
 Do not assume a worker release implies an endpoint or spec release.
-
-Worker release:
-
-```bash
-git tag worker-v0.5.6
-git push origin worker-v0.5.6
-```
 
 ## License And Attribution
 
